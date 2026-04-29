@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "status": "OK",
+    "timestamp": "2026-04-29T12:00:00.000+0000",
+    "pageInfo": {
+      "startIndex": 0,
+      "resultCount": 1,
+      "totalResults": 1
+    }
+  },
+  "links": {},
+  "data": [
+    {
+      "id": 9001,
+      "fromItem": 42,
+      "toItem": 84,
+      "relationshipType": 5,
+      "suspect": false
+    }
+  ]
+}

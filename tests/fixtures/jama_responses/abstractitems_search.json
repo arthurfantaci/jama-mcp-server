@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "status": "OK",
+    "timestamp": "2026-04-29T12:00:00.000+0000",
+    "pageInfo": {
+      "startIndex": 0,
+      "resultCount": 1,
+      "totalResults": 1
+    }
+  },
+  "links": {},
+  "data": [
+    {
+      "id": 42,
+      "documentKey": "DEMO-REQ-7",
+      "globalId": "GID-42",
+      "itemType": 22,
+      "project": 1,
+      "fields": {
+        "name": "User can authenticate via OAuth",
+        "description": "<p>The system shall accept OAuth 2.0 client credentials.</p>"
+      },
+      "createdDate": "2026-02-01T00:00:00.000+0000",
+      "modifiedDate": "2026-04-15T00:00:00.000+0000"
+    }
+  ]
+}

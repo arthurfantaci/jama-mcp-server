@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "status": "OK",
+    "timestamp": "2026-04-29T12:00:00.000+0000"
+  },
+  "links": {},
+  "data": {
+    "id": 100,
+    "firstName": "Arthur",
+    "lastName": "Fantaci",
+    "email": "arthur@example.invalid",
+    "username": "afantaci",
+    "licenseType": "NAMED",
+    "active": true
+  }
+}
