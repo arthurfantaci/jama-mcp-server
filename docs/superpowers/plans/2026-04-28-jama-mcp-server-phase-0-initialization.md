@@ -1736,7 +1736,7 @@ Write the following content to `/Users/arthurfantaci/jama-mcp-server/README.md`:
 ````markdown
 # Jama MCP Server
 
-A Model Context Protocol (MCP) server providing programmatic access to a hosted [Jama Connect](https://www.jamasoftware.com/) instance via its REST API. Built as a portfolio artifact in Agentic AI Application Engineering, with an emphasis on rigorous typing, professional tooling, and a phased delivery roadmap.
+A Model Context Protocol (MCP) server providing programmatic access to a hosted [Jama Connect](https://www.jamasoftware.com/) instance via its REST API. Implemented with rigorous typing, professional tooling, and a phased delivery roadmap.
 
 ## Status
 
@@ -2178,9 +2178,9 @@ Write the following content to `/Users/arthurfantaci/jama-mcp-server/MEMORY.md`:
 |------|----------|-----------|
 | 2026-04-28 | Approach 1 (two-layer split) approved | Clean separation; client lib reusable later |
 | 2026-04-28 | Python 3.12 (not 3.13) | Broader compatibility for clone-and-play audience |
-| 2026-04-28 | mypy strict (blocking), not ty | Maturity signal for portfolio review |
+| 2026-04-28 | mypy strict (blocking), not ty | Maturity signal — mypy is the widely-recognized lingua franca |
 | 2026-04-28 | Apache 2.0 license | Patent grant; contributor-friendly |
-| 2026-04-28 | Public GitHub from Day 1 | Aligned with portfolio goal |
+| 2026-04-28 | Public GitHub from Day 1 | Public engineering deliverable from inception |
 | 2026-04-28 | FastMCP both transports (stdio + streamable-http) | Same module supports both |
 | 2026-04-28 | Three-phase deployment plan (P1 code, P2 Docker, P3 K8s) | Clean troubleshooting boundaries |
 | 2026-04-28 | Professional portrayal constraint binding via `validate-docs-placement.sh` hook | Mechanical enforcement |
@@ -2996,7 +2996,7 @@ Run:
 ```bash
 gh repo create arthurfantaci/jama-mcp-server \
     --public \
-    --description "Model Context Protocol server providing access to Jamacloud (Jama Connect SaaS) via its REST API. Built as a portfolio artifact in Agentic AI Application Engineering." \
+    --description "Model Context Protocol server providing access to Jamacloud (Jama Connect SaaS) via its REST API." \
     --homepage "https://github.com/arthurfantaci/jama-mcp-server" \
     --source /Users/arthurfantaci/jama-mcp-server \
     --remote origin \

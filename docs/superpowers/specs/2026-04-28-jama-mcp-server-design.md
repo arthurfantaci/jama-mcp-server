@@ -17,7 +17,7 @@ The project pursues three goals in priority order, all framed within Agentic AI 
 
 1. Establish authenticated, well-typed access to Jamacloud's REST API through a reusable Python client library.
 2. Expose a curated set of read operations as MCP tools that demonstrate end-to-end traceability — a flagship Jama Software workflow connecting requirements to test runs.
-3. Serve as a portfolio artifact for paid Agentic AI contract work, particularly with Jama Software, Jama Software customers, or both.
+3. Demonstrate professional Agentic AI engineering capability for paid contract work with Jama Software, Jama Software customers, or both.
 
 ### Audience
 
@@ -25,7 +25,7 @@ The repository is public on GitHub from inception and is reviewed by three audie
 
 - **Primary:** the author, for ongoing Agentic AI engineering practice.
 - **Secondary:** Jama Software Product Development and Application Development engineers who clone and evaluate the repository.
-- **Tertiary:** prospective contract employers who review the public repository as a portfolio artifact.
+- **Tertiary:** prospective contract employers reviewing the public repository when evaluating engineering capability.
 
 ### Non-goals
 

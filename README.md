@@ -1,12 +1,12 @@
 # Jama MCP Server
 
-A Model Context Protocol (MCP) server providing programmatic access to a hosted [Jama Connect](https://www.jamasoftware.com/) instance via its REST API. Built as a portfolio artifact in Agentic AI Application Engineering, with an emphasis on rigorous typing, professional tooling, and a phased delivery roadmap.
+A Model Context Protocol (MCP) server providing programmatic access to a hosted [Jama Connect](https://www.jamasoftware.com/) instance via its REST API. Implemented with rigorous typing, professional tooling, and a phased delivery roadmap.
 
 ## Status
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 0     | Repository scaffolding, CI/CD, memory hygiene apparatus | In progress |
+| 0     | Repository scaffolding, CI/CD, memory hygiene apparatus | Complete |
 | 1     | Functional MVP — six MCP tools demonstrating end-to-end traceability | Planned |
 | 2     | Docker containerization | Planned |
 | 3     | Kubernetes deployment (Minikube) | Planned |
@@ -35,7 +35,7 @@ The Phase 1 MVP exposes six MCP tools demonstrating Jama Connect's signature req
 
 ## Quick start
 
-> **Phase 0 in progress.** The commands below assume the Phase 1 implementation has landed. They will not produce a functional server during Phase 0.
+> **Phase 1 not yet implemented.** The commands below show the eventual flow; they will not produce a functional server until Phase 1 lands.
 
 ```bash
 git clone https://github.com/arthurfantaci/jama-mcp-server.git
