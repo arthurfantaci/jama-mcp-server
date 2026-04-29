@@ -1,0 +1,88 @@
+# Repository hygiene philosophy
+# ============================
+# This .gitignore curates the public surface of the repository. The repo
+# is public on GitHub from inception and is reviewed by potential
+# employers, including but not limited to Jama Software engineers and
+# their hiring managers. Files listed here are deliberately excluded
+# because they would either leak secrets, leak per-user state, or
+# portray the project as anything other than serious, professional
+# Agentic AI Application Engineering work.
+#
+# Working notes and exploratory writing belong in docs/internal/ (also
+# ignored), not in the public repository.
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+
+# Python build/cache artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Linting
+.ruff_cache/
+
+# IDE — personal/user-specific (project-shared settings live in .vscode/)
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Internal documentation — working notes never enter the public repository.
+# Public documentation lives in docs/ root and docs/superpowers/{specs,plans}/.
+docs/internal/
+docs/plans/
+
+# Claude Code per-user state
+.claude/settings.local.json
+.claude/worktrees/

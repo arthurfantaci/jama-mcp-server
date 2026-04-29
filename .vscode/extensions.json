@@ -1,0 +1,22 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "ms-python.debugpy",
+    "tamasfe.even-better-toml",
+    "mikestead.dotenv",
+    "esbenp.prettier-vscode",
+    "redhat.vscode-yaml",
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+    "usernamehw.errorlens",
+    "christian-kohler.path-intellisense",
+    "ms-azuretools.vscode-docker"
+  ],
+  "unwantedRecommendations": [
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    "ms-python.flake8"
+  ]
+}

@@ -1,0 +1,18 @@
+# gitleaks configuration for the Jama MCP Server project.
+# Extends the gitleaks default ruleset. Project-specific allow-rules
+# below permit secret-shaped strings in documentation files where they
+# are illustrative rather than real credentials.
+
+title = "Jama MCP Server gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation paths permitted to contain illustrative secret-shaped patterns"
+paths = [
+    '''^\.env\.example$''',
+    '''^docs/superpowers/specs/.*\.md$''',
+    '''^docs/superpowers/plans/.*\.md$''',
+    '''^README\.md$''',
+]
