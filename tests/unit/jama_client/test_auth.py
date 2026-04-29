@@ -66,30 +66,25 @@ def test_token_cache_clear_evicts_token():
 
 
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "jama_responses"
-_BASE_URL = "https://jama.example"
-
-
-def _creds() -> OAuthCredentials:
-    return OAuthCredentials(client_id="cid", client_secret="cs", base_url=_BASE_URL)
 
 
 @respx.mock
-async def test_fetch_token_success_returns_token():
+async def test_fetch_token_success_returns_token(jama_credentials, jama_token_url):
     payload = json.loads((_FIXTURES / "oauth_token.json").read_text())
-    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(return_value=httpx.Response(200, json=payload))
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=payload))
     async with httpx.AsyncClient() as client:
-        token = await fetch_token(_creds(), client)
+        token = await fetch_token(jama_credentials, client)
     assert token.access_token == payload["access_token"]
     assert token.expires_in == payload["expires_in"]
 
 
 @respx.mock
-async def test_fetch_token_uses_basic_auth_and_form_body():
-    route = respx.post(f"{_BASE_URL}/rest/oauth/token").mock(
+async def test_fetch_token_uses_basic_auth_and_form_body(jama_credentials, jama_token_url):
+    route = respx.post(jama_token_url).mock(
         return_value=httpx.Response(200, json={"access_token": "x", "expires_in": 60}),
     )
     async with httpx.AsyncClient() as client:
-        await fetch_token(_creds(), client)
+        await fetch_token(jama_credentials, client)
     request = route.calls.last.request
     assert request.headers["authorization"].startswith("Basic ")
     assert request.headers["content-type"].startswith("application/x-www-form-urlencoded")
@@ -97,50 +92,56 @@ async def test_fetch_token_uses_basic_auth_and_form_body():
 
 
 @respx.mock
-async def test_fetch_token_raises_auth_error_on_401():
-    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(return_value=httpx.Response(401))
+async def test_fetch_token_raises_auth_error_on_401(jama_credentials, jama_token_url):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(401))
     async with httpx.AsyncClient() as client:
         with pytest.raises(JamaAuthError):
-            await fetch_token(_creds(), client)
+            await fetch_token(jama_credentials, client)
 
 
 @respx.mock
-async def test_fetch_token_raises_forbidden_error_on_403():
-    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(return_value=httpx.Response(403))
+async def test_fetch_token_raises_forbidden_error_on_403(jama_credentials, jama_token_url):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(403))
     async with httpx.AsyncClient() as client:
         with pytest.raises(JamaForbiddenError):
-            await fetch_token(_creds(), client)
+            await fetch_token(jama_credentials, client)
 
 
 @respx.mock
-async def test_fetch_token_raises_server_error_on_503():
-    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(return_value=httpx.Response(503))
+async def test_fetch_token_raises_server_error_on_503(jama_credentials, jama_token_url):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(503))
     async with httpx.AsyncClient() as client:
         with pytest.raises(JamaServerError):
-            await fetch_token(_creds(), client)
+            await fetch_token(jama_credentials, client)
 
 
 @respx.mock
-async def test_fetch_token_raises_network_error_on_transport_failure():
-    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(side_effect=httpx.ConnectError("boom"))
+async def test_fetch_token_raises_network_error_on_transport_failure(
+    jama_credentials,
+    jama_token_url,
+):
+    respx.post(jama_token_url).mock(side_effect=httpx.ConnectError("boom"))
     async with httpx.AsyncClient() as client:
         with pytest.raises(JamaNetworkError):
-            await fetch_token(_creds(), client)
+            await fetch_token(jama_credentials, client)
 
 
 @respx.mock
-async def test_fetch_token_raises_validation_error_on_missing_fields():
-    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(
+async def test_fetch_token_raises_validation_error_on_missing_fields(
+    jama_credentials,
+    jama_token_url,
+):
+    respx.post(jama_token_url).mock(
         return_value=httpx.Response(200, json={"unexpected": "shape"}),
     )
     async with httpx.AsyncClient() as client:
         with pytest.raises(JamaValidationError):
-            await fetch_token(_creds(), client)
+            await fetch_token(jama_credentials, client)
 
 
 @respx.mock
-async def test_fetch_token_raises_auth_error_on_unexpected_status():
-    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(return_value=httpx.Response(302))
+async def test_fetch_token_raises_auth_error_on_unexpected_status(jama_credentials, jama_token_url):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(302))
     async with httpx.AsyncClient() as client:
         with pytest.raises(JamaAuthError):
-            await fetch_token(_creds(), client)
+            await fetch_token(jama_credentials, client)
