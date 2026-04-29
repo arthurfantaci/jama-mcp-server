@@ -81,3 +81,28 @@ async def test_list_projects_returns_ai_shaped_list(
     projects: list[dict[str, Any]] = result[1]["result"]
     assert isinstance(projects, list)
     assert {p["project_key"] for p in projects} == {"DEMO", "PILOT"}
+
+
+async def test_get_item_returns_ai_shaped_item(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    server, client = server_with_mock_client
+    client.get_item.return_value = Item(id=42, document_key="DEMO-REQ-7")
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        result = await server.call_tool("get_item", {"item_id": 42})
+    data: dict[str, Any] = result[1]
+    assert data["id"] == 42
+    assert data["document_key"] == "DEMO-REQ-7"
+
+
+async def test_get_item_translates_not_found_to_structured_response(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    server, client = server_with_mock_client
+    client.get_item.side_effect = JamaNotFoundError("not found")
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        result = await server.call_tool("get_item", {"item_id": 999})
+    data: dict[str, Any] = result[1]
+    assert data == {"found": False, "item_id": 999, "message": "not found"}

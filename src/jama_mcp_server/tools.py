@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp.server import Context
 
+from jama_client.exceptions import JamaNotFoundError
+
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
@@ -42,3 +44,17 @@ def register(server: FastMCP) -> None:
         """Return projects accessible to the configured Jama credentials."""
         projects = await _client(ctx).list_projects()
         return [p.model_dump() for p in projects]
+
+    @server.tool()
+    async def get_item(ctx: _Context, item_id: int) -> dict[str, Any]:
+        """Retrieve a Jama item by ID.
+
+        Returns ``{"found": False, "item_id": id, "message": ...}`` when the
+        item does not exist; otherwise returns the item's snake_case
+        serialization.
+        """
+        try:
+            item = await _client(ctx).get_item(item_id)
+        except JamaNotFoundError as exc:
+            return {"found": False, "item_id": item_id, "message": str(exc)}
+        return item.model_dump()
