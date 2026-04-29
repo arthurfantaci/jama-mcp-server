@@ -1032,8 +1032,9 @@ git commit -m "feat(jama_client): add OAuth credentials, Token, and TokenCache"
 
 **Files:**
 - Modify: `tests/unit/jama_client/test_auth.py` (extend with HTTP tests)
+- Modify: `docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md` (add the 403 test to the plan's Task 4 listing)
 
-`fetch_token` was implemented in Task 3 alongside the data classes. This task adds `respx`-mocked tests covering the success path, 401/403, 5xx, transport failure, and malformed responses.
+`fetch_token` was implemented in Task 3 alongside the data classes. This task adds `respx`-mocked tests covering the success path, 401, 403, 5xx, transport failure, malformed responses, and unexpected/redirect status codes.
 
 - [ ] **Step 1: Append failing tests to `tests/unit/jama_client/test_auth.py`.**
 
@@ -1046,9 +1047,10 @@ from pathlib import Path
 import httpx
 import respx
 
-from jama_client.auth import fetch_token
+from jama_client.auth import OAuthCredentials, fetch_token
 from jama_client.exceptions import (
     JamaAuthError,
+    JamaForbiddenError,
     JamaNetworkError,
     JamaServerError,
     JamaValidationError,
@@ -1094,6 +1096,14 @@ async def test_fetch_token_raises_auth_error_on_401():
 
 
 @respx.mock
+async def test_fetch_token_raises_forbidden_error_on_403():
+    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(return_value=httpx.Response(403))
+    async with httpx.AsyncClient() as client:
+        with pytest.raises(JamaForbiddenError):
+            await fetch_token(_creds(), client)
+
+
+@respx.mock
 async def test_fetch_token_raises_server_error_on_503():
     respx.post(f"{_BASE_URL}/rest/oauth/token").mock(return_value=httpx.Response(503))
     async with httpx.AsyncClient() as client:
@@ -1117,6 +1127,14 @@ async def test_fetch_token_raises_validation_error_on_missing_fields():
     async with httpx.AsyncClient() as client:
         with pytest.raises(JamaValidationError):
             await fetch_token(_creds(), client)
+
+
+@respx.mock
+async def test_fetch_token_raises_auth_error_on_unexpected_status():
+    respx.post(f"{_BASE_URL}/rest/oauth/token").mock(return_value=httpx.Response(302))
+    async with httpx.AsyncClient() as client:
+        with pytest.raises(JamaAuthError):
+            await fetch_token(_creds(), client)
 ```
 
 - [ ] **Step 2: Run the test to verify all paths pass.**
@@ -1125,7 +1143,7 @@ async def test_fetch_token_raises_validation_error_on_missing_fields():
 uv run pytest tests/unit/jama_client/test_auth.py -v
 ```
 
-Expected: the six new HTTP tests pass alongside the cache tests from Task 3 (twelve total).
+Expected: the eight new HTTP tests pass alongside the cache tests from Task 3 (fourteen total).
 
 - [ ] **Step 3: Lint and type-check.**
 
