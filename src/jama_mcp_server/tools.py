@@ -68,3 +68,12 @@ def register(server: FastMCP) -> None:
         """Search Jama items within ``project_id`` for ``query``."""
         items = await _client(ctx).search_items(project_id=project_id, query=query)
         return [item.model_dump() for item in items]
+
+    @server.tool()
+    async def get_downstream_relationships(
+        ctx: _Context,
+        item_id: int,
+    ) -> list[dict[str, Any]]:
+        """Return downstream relationships originating from ``item_id``."""
+        rels = await _client(ctx).get_downstream_relationships(item_id)
+        return [rel.model_dump() for rel in rels]

@@ -123,3 +123,18 @@ async def test_search_items_returns_ai_shaped_list(
     assert isinstance(items, list)
     assert items[0]["document_key"] == "DEMO-REQ-7"
     client.search_items.assert_awaited_once_with(project_id=1, query="OAuth")
+
+
+async def test_get_downstream_relationships_returns_ai_shaped_list(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    server, client = server_with_mock_client
+    client.get_downstream_relationships.return_value = [
+        Relationship(id=9001, from_item=42, to_item=84, relationship_type=5),
+    ]
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        result = await server.call_tool("get_downstream_relationships", {"item_id": 42})
+    rels: list[dict[str, Any]] = result[1]["result"]
+    assert rels[0]["from_item"] == 42
+    assert rels[0]["to_item"] == 84
