@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 import httpx
+from pydantic import BaseModel, ValidationError
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -29,6 +30,9 @@ from jama_client.exceptions import (
     JamaServerError,
     JamaValidationError,
 )
+from jama_client.models import Project, User
+
+_M = TypeVar("_M", bound=BaseModel)
 
 _DEFAULT_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 _NETWORK_RETRY_LIMIT = 2
@@ -89,6 +93,50 @@ class JamaClient:
         token = await fetch_token(self._creds, self._http)
         self._tokens.set(token)
         return token
+
+    async def get_current_user(self) -> User:
+        """Return the user identified by the current OAuth credentials.
+
+        Returns:
+            A :class:`~jama_client.models.User` populated from the API response.
+
+        Raises:
+            JamaValidationError: When the response cannot be validated as a :class:`User`.
+        """
+        data = await self._request("GET", "/rest/latest/users/current")
+        return self._validate(User, data)
+
+    async def list_projects(self) -> list[Project]:
+        """Return the first page of accessible Jama projects.
+
+        Pagination metadata (``meta.pageInfo``) is discarded by the default
+        envelope-unwrapping behaviour. Phase 2 may revisit pagination by
+        passing ``return_envelope=True`` and surfacing ``pageInfo`` to
+        callers; for Phase 1 the first page is sufficient for the
+        traceability slice.
+        """
+        data = await self._request("GET", "/rest/latest/projects")
+        return [self._validate(Project, item) for item in data]
+
+    @staticmethod
+    def _validate(model_cls: type[_M], payload: Any) -> _M:
+        """Validate an API payload as ``model_cls``, translating failures to JamaValidationError.
+
+        Args:
+            model_cls: The Pydantic model class to validate against.
+            payload: The raw API payload (typically a ``dict``).
+
+        Returns:
+            A validated instance of ``model_cls``.
+
+        Raises:
+            JamaValidationError: When the payload fails Pydantic validation.
+        """
+        try:
+            return model_cls.model_validate(payload)
+        except (ValidationError, TypeError, ValueError) as exc:
+            msg = f"Failed to validate {model_cls.__name__} response."
+            raise JamaValidationError(msg, payload=payload) from exc
 
     async def _request(
         self,
