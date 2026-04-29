@@ -888,6 +888,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from jama_client.exceptions import (
     JamaAuthError,
+    JamaForbiddenError,
     JamaNetworkError,
     JamaServerError,
     JamaValidationError,
@@ -959,7 +960,8 @@ async def fetch_token(creds: OAuthCredentials, http: httpx.AsyncClient) -> Token
         A :class:`Token` representing the access token.
 
     Raises:
-        JamaAuthError: The token endpoint returned 401 or 403.
+        JamaAuthError: The token endpoint returned 401.
+        JamaForbiddenError: The token endpoint returned 403.
         JamaServerError: The token endpoint returned a 5xx status.
         JamaNetworkError: A transport-level error occurred.
         JamaValidationError: The response body did not include the expected fields.
@@ -975,9 +977,12 @@ async def fetch_token(creds: OAuthCredentials, http: httpx.AsyncClient) -> Token
         msg = f"OAuth token request failed at the transport layer: {exc!r}"
         raise JamaNetworkError(msg) from exc
 
-    if response.status_code in (401, 403):
-        msg = f"OAuth token endpoint rejected client credentials (HTTP {response.status_code})."
+    if response.status_code == 401:
+        msg = "OAuth token endpoint rejected client credentials (HTTP 401)."
         raise JamaAuthError(msg)
+    if response.status_code == 403:
+        msg = "OAuth token endpoint forbade the request (HTTP 403)."
+        raise JamaForbiddenError(msg)
     if 500 <= response.status_code < 600:
         msg = f"OAuth token endpoint returned HTTP {response.status_code}."
         raise JamaServerError(msg)

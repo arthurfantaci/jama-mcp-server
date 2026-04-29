@@ -114,10 +114,13 @@ convention = "google"
 "tests/**/*.py" = [
     "S101",
     "S105",
+    "S106",
     "S311",
     "ANN",
+    "B017",
     "D",
     "PLR2004",
+    "PT011",
     "ARG",
 ]
 
