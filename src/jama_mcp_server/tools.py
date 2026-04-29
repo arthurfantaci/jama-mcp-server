@@ -58,3 +58,13 @@ def register(server: FastMCP) -> None:
         except JamaNotFoundError as exc:
             return {"found": False, "item_id": item_id, "message": str(exc)}
         return item.model_dump()
+
+    @server.tool()
+    async def search_items(
+        ctx: _Context,
+        project_id: int,
+        query: str,
+    ) -> list[dict[str, Any]]:
+        """Search Jama items within ``project_id`` for ``query``."""
+        items = await _client(ctx).search_items(project_id=project_id, query=query)
+        return [item.model_dump() for item in items]

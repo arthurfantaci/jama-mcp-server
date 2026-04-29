@@ -106,3 +106,20 @@ async def test_get_item_translates_not_found_to_structured_response(
         result = await server.call_tool("get_item", {"item_id": 999})
     data: dict[str, Any] = result[1]
     assert data == {"found": False, "item_id": 999, "message": "not found"}
+
+
+async def test_search_items_returns_ai_shaped_list(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    server, client = server_with_mock_client
+    client.search_items.return_value = [Item(id=42, document_key="DEMO-REQ-7")]
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        result = await server.call_tool(
+            "search_items",
+            {"project_id": 1, "query": "OAuth"},
+        )
+    items: list[dict[str, Any]] = result[1]["result"]
+    assert isinstance(items, list)
+    assert items[0]["document_key"] == "DEMO-REQ-7"
+    client.search_items.assert_awaited_once_with(project_id=1, query="OAuth")
