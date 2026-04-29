@@ -2,18 +2,18 @@
 
 ## Current phase
 
-**Phase 0 — Initialization** (in progress / closing)
+**Phase 0 — Initialization (complete)**
 
 **Active branch:** `main`
 
-**Next task:** complete the Phase 0 inception commit and push to GitHub. After Phase 0 closes, transition to Phase 1 — Functional MVP per the design spec.
+**Next task:** transition to Phase 1 — Functional MVP per the design spec.
 
 ## Phase status
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 0 | Repository scaffolding, CI/CD, memory hygiene apparatus | In progress |
-| 1 | Functional MVP — six MCP tools, both transports | Planned |
+| 0 | Repository scaffolding, CI/CD, memory hygiene apparatus | Complete |
+| 1 | Functional MVP — six MCP tools, both transports | Active (planned) |
 | 2 | Docker containerization | Planned |
 | 3 | Kubernetes deployment (Minikube) | Planned |
 
@@ -29,6 +29,7 @@
 | 2026-04-28 | FastMCP both transports (stdio + streamable-http) | Same module supports both |
 | 2026-04-28 | Three-phase deployment plan (P1 code, P2 Docker, P3 K8s) | Clean troubleshooting boundaries |
 | 2026-04-28 | Professional portrayal constraint binding via `validate-docs-placement.sh` hook | Mechanical enforcement |
+| 2026-04-28 | Phase 0 inception commit pushed to public GitHub | Repository scaffolded; CI green; ready for Phase 1 |
 
 ## Known constraints
 
