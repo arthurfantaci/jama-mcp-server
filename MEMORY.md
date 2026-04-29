@@ -30,6 +30,7 @@
 | 2026-04-28 | Three-phase deployment plan (P1 code, P2 Docker, P3 K8s) | Clean troubleshooting boundaries |
 | 2026-04-28 | Professional portrayal constraint binding via `validate-docs-placement.sh` hook | Mechanical enforcement |
 | 2026-04-28 | Phase 0 inception commit pushed to public GitHub | Repository scaffolded; CI green; ready for Phase 1 |
+| 2026-04-29 | Dependabot bumps (#1 setup-uv, #2 codecov-action, #3 actions/checkout) merged; GitHub Dependency Graph enabled | All CI checks green on `main`; Phase 0 fully closed |
 
 ## Known constraints
 
