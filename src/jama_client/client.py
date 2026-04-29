@@ -172,7 +172,11 @@ class JamaClient:
         return [self._validate(Relationship, rel) for rel in data]
 
     async def get_test_runs_for_item(self, item_id: int) -> list[TestRun]:
-        """Return test runs that exercise ``item_id``.
+        """Return test runs for the test case identified by ``item_id``.
+
+        Test runs are records of executing a test case; ``item_id`` should
+        therefore be the ID of an item whose item type is a test case. For
+        non-test-case items the call returns an empty list.
 
         Pagination metadata (``meta.pageInfo``) is discarded by the default
         envelope-unwrapping behaviour. Phase 2 may revisit pagination by
@@ -181,12 +185,13 @@ class JamaClient:
         traceability slice.
 
         Args:
-            item_id: The Jama internal item ID.
-
-        Raises:
-            JamaNotFoundError: When the item does not exist.
+            item_id: The Jama internal item ID for a test case.
         """
-        data = await self._request("GET", f"/rest/latest/items/{item_id}/testruns")
+        data = await self._request(
+            "GET",
+            "/rest/latest/testruns",
+            params={"testCase": item_id},
+        )
         return [self._validate(TestRun, run) for run in data]
 
     @staticmethod

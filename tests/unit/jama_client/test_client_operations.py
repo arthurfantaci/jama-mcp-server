@@ -134,7 +134,7 @@ async def test_get_test_runs_for_item_returns_test_run_models(
     jama_token_stub,
 ):
     respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
-    respx.get(f"{jama_base_url}/rest/latest/items/42/testruns").mock(
+    route = respx.get(f"{jama_base_url}/rest/latest/testruns").mock(
         return_value=httpx.Response(200, json=_fixture("items_test_runs.json")),
     )
     async with JamaClient(jama_credentials) as client:
@@ -142,3 +142,4 @@ async def test_get_test_runs_for_item_returns_test_run_models(
     assert len(runs) == 1
     assert isinstance(runs[0], TestRun)
     assert runs[0].fields["testRunStatus"] == "PASSED"
+    assert route.calls.last.request.url.params["testCase"] == "42"

@@ -94,7 +94,7 @@ The following Jamacloud REST URLs are used in the plan's `respx` mocks and clien
 | `get_item` | `GET` | `/rest/latest/items/{item_id}` |
 | `search_items` | `GET` | `/rest/latest/abstractitems?project={project_id}&contains={query}` |
 | `get_downstream_relationships` | `GET` | `/rest/latest/items/{item_id}/downstreamrelationships` |
-| `get_test_runs_for_item` | `GET` | `/rest/latest/items/{item_id}/testruns` |
+| `get_test_runs_for_item` | `GET` | `/rest/latest/testruns?testCase={item_id}` |
 
 These are the canonical Jama REST endpoints. **Verify against the live sandbox during Task 21 (integration smoke).** If any URL or response shape differs, adjust the implementation and the affected fixtures, and update this table in a follow-on commit on the same branch.
 
@@ -1864,7 +1864,7 @@ async def test_get_downstream_relationships_returns_relationship_models():
 @respx.mock
 async def test_get_test_runs_for_item_returns_test_run_models():
     respx.post(_TOKEN_URL).mock(return_value=httpx.Response(200, json=_token_stub()))
-    respx.get(f"{_BASE_URL}/rest/latest/items/42/testruns").mock(
+    route = respx.get(f"{_BASE_URL}/rest/latest/testruns").mock(
         return_value=httpx.Response(200, json=_fixture("items_test_runs.json")),
     )
     async with JamaClient(_creds()) as client:
@@ -1872,6 +1872,7 @@ async def test_get_test_runs_for_item_returns_test_run_models():
     assert len(runs) == 1
     assert isinstance(runs[0], TestRun)
     assert runs[0].fields["testRunStatus"] == "PASSED"
+    assert route.calls.last.request.url.params["testCase"] == "42"
 ```
 
 - [ ] **Step 2: Run the test to verify it fails.**
@@ -1894,8 +1895,17 @@ Expected: `AttributeError`.
         return [self._validate(Relationship, rel) for rel in data]
 
     async def get_test_runs_for_item(self, item_id: int) -> list[TestRun]:
-        """Return test runs that exercise ``item_id``."""
-        data = await self._request("GET", f"/rest/latest/items/{item_id}/testruns")
+        """Return test runs for the test case identified by ``item_id``.
+
+        Test runs are records of executing a test case; ``item_id`` should
+        be the ID of an item whose item type is a test case. Non-test-case
+        items return an empty list.
+        """
+        data = await self._request(
+            "GET",
+            "/rest/latest/testruns",
+            params={"testCase": item_id},
+        )
         return [self._validate(TestRun, run) for run in data]
 ```
 
