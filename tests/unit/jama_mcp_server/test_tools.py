@@ -1,0 +1,83 @@
+"""Unit tests for the six Phase 1 MCP tools.
+
+Tools are exercised through FastMCP's in-process call_tool API with a mock
+JamaClient injected via a synthetic RequestContext.  FastMCP v1.27+ returns a
+tuple of (unstructured_content, structured_content) when a tool has an output
+schema; the tests use the structured half (result[1]) for assertions so they
+are not coupled to JSON serialisation details.
+
+Note: Item, Relationship, and TestRun are imported in anticipation of the
+tests that Tasks 14-17 will append to this file.  The per-file ruff ignores
+on tests/**/*.py suppress F401 for forward-looking imports.
+"""
+
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import Context
+from mcp.shared.context import RequestContext
+
+from jama_client.exceptions import JamaNotFoundError
+from jama_client.models import Item, Project, Relationship, TestRun, User
+from jama_mcp_server import tools
+
+
+def _make_context(mock_client: AsyncMock, server: FastMCP) -> Context:
+    """Build a synthetic Context with ``mock_client`` in the lifespan dict."""
+    req_ctx: RequestContext[Any, Any, Any] = RequestContext(
+        request_id="test-request",
+        meta=None,
+        session=MagicMock(),
+        lifespan_context={"jama_client": mock_client},
+    )
+    return Context(request_context=req_ctx, fastmcp=server)
+
+
+@pytest.fixture
+def server_with_mock_client(mock_jama_client: AsyncMock) -> tuple[FastMCP, AsyncMock]:
+    """Return a FastMCP server with tools registered and the mock client ready."""
+
+    @asynccontextmanager
+    async def _lifespan(_server: FastMCP) -> Any:
+        yield {"jama_client": mock_jama_client}
+
+    server = FastMCP("jama-mcp-server-test", lifespan=_lifespan)
+    tools.register(server)
+    return server, mock_jama_client
+
+
+async def test_whoami_returns_ai_shaped_user(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    server, client = server_with_mock_client
+    client.get_current_user.return_value = User(id=100, first_name="A", username="a")
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        # result is (unstructured_content, structured_dict) — use structured half
+        result = await server.call_tool("whoami", {})
+    data: dict[str, Any] = result[1]
+    assert data["id"] == 100
+    assert data["username"] == "a"
+    assert "first_name" in data
+
+
+async def test_list_projects_returns_ai_shaped_list(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    server, client = server_with_mock_client
+    client.list_projects.return_value = [
+        Project(id=1, project_key="DEMO"),
+        Project(id=2, project_key="PILOT"),
+    ]
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        # list-returning tools are wrapped: result[1] == {"result": [...]}
+        result = await server.call_tool("list_projects", {})
+    projects: list[dict[str, Any]] = result[1]["result"]
+    assert isinstance(projects, list)
+    assert {p["project_key"] for p in projects} == {"DEMO", "PILOT"}
