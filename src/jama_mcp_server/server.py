@@ -1,29 +1,77 @@
-"""FastMCP application instance and transport entry points.
+"""FastMCP application instance and transport entry points."""
 
-The Phase 0 skeleton declares ``main_stdio`` and ``main_http`` as
-no-op entry points so the console scripts declared in ``pyproject.toml``
-install successfully and produce a clear error if invoked before Phase 1
-implementation lands.
-"""
+from __future__ import annotations
 
-from typing import NoReturn
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any
 
+from mcp.server.fastmcp import FastMCP
 
-def main_stdio() -> NoReturn:
-    """Run the MCP server using the stdio transport.
+from jama_client import JamaClient, OAuthCredentials
+from jama_mcp_server.config import Settings
+from jama_mcp_server.logging_config import configure_logging
 
-    Raises:
-        NotImplementedError: Always. Implementation lands in Phase 1.
-    """
-    msg = "main_stdio is implemented in Phase 1; see docs/superpowers/specs/."
-    raise NotImplementedError(msg)
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
 
 
-def main_http() -> NoReturn:
-    """Run the MCP server using the streamable HTTP transport.
+def _default_client_factory(settings: Settings) -> JamaClient:
+    creds = OAuthCredentials(
+        client_id=settings.jama_oauth_client_id,
+        client_secret=settings.jama_oauth_client_secret.get_secret_value(),
+        base_url=settings.jama_base_url,
+    )
+    return JamaClient(creds)
 
-    Raises:
-        NotImplementedError: Always. Implementation lands in Phase 1.
-    """
-    msg = "main_http is implemented in Phase 1; see docs/superpowers/specs/."
-    raise NotImplementedError(msg)
+
+@asynccontextmanager
+async def jama_lifespan(
+    _server: Any,
+    *,
+    settings: Settings,
+    client_factory: Callable[[Settings], JamaClient] | None = None,
+) -> AsyncIterator[dict[str, Any]]:
+    """Construct and tear down the shared :class:`JamaClient` for the server."""
+    factory = client_factory or _default_client_factory
+    client = factory(settings)
+    async with client:
+        yield {"jama_client": client}
+
+
+def build_server(*, settings: Settings | None = None) -> FastMCP:
+    """Build a :class:`FastMCP` instance bound to the given settings."""
+    cfg = settings or Settings()
+
+    @asynccontextmanager
+    async def _bound_lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
+        async with jama_lifespan(server, settings=cfg) as ctx:
+            yield ctx
+
+    server = FastMCP(
+        "jama-mcp-server",
+        host=cfg.mcp_http_host,
+        port=cfg.mcp_http_port,
+        lifespan=_bound_lifespan,
+    )
+
+    # Register tools (Task 13+ populates these).
+    from jama_mcp_server import tools  # noqa: PLC0415
+
+    tools.register(server)
+    return server
+
+
+def main_stdio() -> None:
+    """Run the MCP server using the stdio transport."""
+    settings = Settings()
+    configure_logging(settings.mcp_transport)
+    server = build_server(settings=settings)
+    server.run(transport="stdio")
+
+
+def main_http() -> None:
+    """Run the MCP server using the streamable-HTTP transport."""
+    settings = Settings()
+    configure_logging(settings.mcp_transport)
+    server = build_server(settings=settings)
+    server.run(transport="streamable-http")

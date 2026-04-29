@@ -1,0 +1,26 @@
+{
+  "meta": {
+    "status": "OK",
+    "timestamp": "2026-04-29T12:00:00.000+0000",
+    "pageInfo": {
+      "startIndex": 0,
+      "resultCount": 1,
+      "totalResults": 1
+    }
+  },
+  "links": {},
+  "data": [
+    {
+      "id": 7001,
+      "documentKey": "DEMO-TR-1",
+      "fields": {
+        "name": "OAuth login happy path",
+        "executionDate": "2026-04-20T10:30:00.000+0000",
+        "testRunStatus": "PASSED",
+        "assignedTo": 100
+      },
+      "createdDate": "2026-04-20T10:00:00.000+0000",
+      "modifiedDate": "2026-04-20T10:35:00.000+0000"
+    }
+  ]
+}

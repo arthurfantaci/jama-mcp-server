@@ -17,7 +17,7 @@ keywords = [
 ]
 authors = [{ name = "Arthur Fantaci" }]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
@@ -114,11 +114,16 @@ convention = "google"
 "tests/**/*.py" = [
     "S101",
     "S105",
+    "S106",
     "S311",
     "ANN",
+    "B017",
     "D",
     "PLR2004",
+    "PT011",
     "ARG",
+    "F401",      # imported but unused — importability tests import to verify, not to use
+    "PLC0415",   # import-outside-top-level — importability tests intentionally defer imports
 ]
 
 [tool.ruff.format]
