@@ -1927,6 +1927,8 @@ git commit -m "feat(jama_client): add downstream relationships and test runs ope
 
 **Files:**
 - Modify: `src/jama_client/__init__.py`
+- Create: `tests/unit/test_smoke.py`
+- Delete: `tests/test_smoke.py` (Phase 0 placeholder; superseded)
 
 Re-export the surface so external callers (and the MCP server) can do `from jama_client import JamaClient, JamaError`.
 

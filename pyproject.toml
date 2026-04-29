@@ -122,6 +122,8 @@ convention = "google"
     "PLR2004",
     "PT011",
     "ARG",
+    "F401",      # imported but unused — importability tests import to verify, not to use
+    "PLC0415",   # import-outside-top-level — importability tests intentionally defer imports
 ]
 
 [tool.ruff.format]
