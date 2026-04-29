@@ -37,6 +37,24 @@ This repository is public on GitHub from inception and is reviewed by potential 
 - **Type annotations and Google-style docstrings on every public surface.** Enforced by ruff `ANN` and `D` rules.
 - **Errors map to typed exceptions** per the two-layer policy in the design spec.
 
+## Phase 1 conventions codified
+
+Patterns discovered or sanctioned during Phase 1. Apply uniformly to new code.
+
+- **Pydantic v2 entity models** inherit `_JamaModel` with `alias_generator=to_camel`, `populate_by_name=True`, `extra="allow"`, `serialize_by_alias=False`. Never write per-field `Field(alias=...)`. `model_dump()` returns snake_case (the AI tool surface).
+- **MCP tools return snake_case via `model.model_dump()`**; do not pass `by_alias=True`.
+- **`get_item` translates 404 to `{"found": False, "item_id": id, "message": ...}`**; all other tools propagate exceptions to FastMCP. The asymmetry is documented in `tools.py`'s module docstring.
+- **`Context` is a runtime import in `tools.py`**, not under `TYPE_CHECKING`. FastMCP's tool registration calls `typing.get_type_hints()` against module globals; a TYPE_CHECKING-only import raises `NameError`. `_Context = Context[Any, Any, Any]` is the canonical alias on tool function signatures.
+- **MCP-tool unit tests** use a synthetic `RequestContext` (`_make_context` helper) with `lifespan_context={"jama_client": mock_client}`, then `patch.object(server, "get_context", return_value=ctx)` before `await server.call_tool(...)`. FastMCP v1.27+ returns a `(unstructured, structured)` tuple — assert against `result[1]` (or `result[1]["result"]` for list-returning tools).
+- **`FastMCP.__init__(host=..., port=...)`** — host/port go on the constructor, not `run()`. Verified via `inspect.signature(FastMCP.__init__)`.
+- **403 → `JamaForbiddenError`**, 401 → `JamaAuthError`. Both `fetch_token` and `_request._raise_for_status` distinguish.
+- **`__test__ = False`** on domain classes whose names start with `Test` (e.g., `TestRun`) to suppress pytest collection warnings.
+- **`asyncio.sleep` patching** in retry tests (`tests/unit/jama_client/test_client_transport.py` patches `jama_client.client.asyncio.sleep`) keeps suite runtime under 0.2s. Apply to any future retry tests.
+- **Shared fixtures in `tests/conftest.py`**: `jama_credentials`, `jama_base_url`, `jama_token_url`, `jama_token_stub` (client tests), `mock_jama_client` (MCP-tool tests). No local `_creds()` / `_BASE_URL` helpers in unit-test files. Integration tests use raw `os.environ` directly (different domain, sanctioned).
+- **`from __future__ import annotations`** on every `.py` (project-wide).
+- **`-> NoReturn`** on functions that always raise.
+- **Lazy import inside `build_server`**: `from jama_mcp_server import tools  # noqa: PLC0415` — intentional to avoid import cycles.
+
 ## Tooling rigor
 
 - **Ruff** (21 rule families): E, W, F, I, N, D, UP, ANN, S, B, C4, SIM, TCH, RUF, TRY, EM, PIE, PT, RET, ARG, PL. Google docstring convention. Per-file relaxations for tests.

@@ -2,87 +2,69 @@
 
 ## Current phase
 
-**Phase 1 — Functional MVP (in progress, Tasks 1–9 of 22 complete)**
+**Phase 1 — Functional MVP (complete pending PR merge)**
 
 **Active branch:** `feat/phase-1-functional-mvp`
-**Latest commit:** `8436d5a` (Task 9 — `feat(jama_client): expose public package surface`)
-**Open PR:** none yet (opens at Task 22)
+**Open PR:** opens at Task 22 of the Phase 1 plan
 **Tracking issue:** [#4](https://github.com/arthurfantaci/jama-mcp-server/issues/4)
 
-**Next task:** Task 10 — `Settings` configuration (start of `jama_mcp_server` layer).
+**Next phase:** Phase 2 — Docker containerization (planned).
 
 ## Phase status
 
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 0 | Repository scaffolding, CI/CD, memory hygiene apparatus | Complete |
-| 1 | Functional MVP — six client operations + six MCP tools, both transports | In progress (jama_client done; jama_mcp_server pending) |
+| 1 | Functional MVP — six client operations + six MCP tools, both transports | Complete pending PR |
 | 2 | Docker containerization | Planned |
 | 3 | Kubernetes deployment (Minikube) | Planned |
 
-## Phase 1 progress
+## Phase 1 surface (delivered)
 
-- ✅ Tasks 1–9 (jama_client layer): exceptions, models + fixtures, OAuth (credentials/token/cache/fetch_token), JamaClient transport + retry policy, all six operations (`get_current_user`, `list_projects`, `get_item`, `search_items`, `get_downstream_relationships`, `get_test_runs_for_item`), public package surface re-exports.
-- ⏳ Tasks 10–22 (jama_mcp_server layer + verification): Settings, logging, FastMCP lifespan, six `@mcp.tool()` functions, protocol smoke tests, integration suite, README/docs, final verification + PR.
+- **`jama_client`** — async REST client, OAuth credentials/token cache, six operations (`get_current_user`, `list_projects`, `get_item`, `search_items`, `get_downstream_relationships`, `get_test_runs_for_item`), Pydantic v2 models, typed exceptions.
+- **`jama_mcp_server`** — `Settings` (pydantic-settings), transport-aware `configure_logging`, FastMCP `build_server`/`jama_lifespan`, six `@server.tool()` closures, two transport entry points (`main_stdio`, `main_http`), `__main__.py` dispatcher.
+- **Tests** — 83 unit/protocol tests passing, 0 warnings; integration suite verified against `pm2.jamacloud.com` (whoami + list_projects passed live; get_item gated on `JAMA_KNOWN_ITEM_ID`).
 
-**Test count after Task 9:** 64 passing, 0 warnings, 0 integration tests run yet.
+## Sanctioned conventions established during Phase 1
 
-## Pre-flight status (all done; new session can skip)
+These are codified across the codebase, plan, and tests. Do not undo or re-litigate.
 
-- ✅ Phase 1 GitHub issue #4 open
-- ✅ `feat/phase-1-functional-mvp` branch created
-- ✅ Baseline checks green at branch creation
-- ✅ `.env` populated with OAuth credentials (per user 2026-04-29) — unblocks Tasks 19 + 22
+1. **Pydantic v2 alias generator.** `_JamaModel` uses `alias_generator=to_camel`, `populate_by_name=True`, `extra="allow"`, `serialize_by_alias=False`. Per-field `Field(alias=...)` is forbidden. `model_dump()` returns snake_case for AI tool responses.
+2. **`__test__ = False`** on domain classes whose names start with `Test` (currently `TestRun`) to suppress pytest collection warnings.
+3. **403 → `JamaForbiddenError`**, 401 → `JamaAuthError`. Both `fetch_token` and `_request._raise_for_status` distinguish.
+4. **Retry tests patch `asyncio.sleep`** in `jama_client.client.asyncio.sleep` so suite runtime stays under 0.2s. Same pattern applies to any future retry-policy tests.
+5. **Shared fixtures in `tests/conftest.py`**: `jama_credentials`, `jama_base_url`, `jama_token_url`, `jama_token_stub` (client tests), `mock_jama_client` (MCP-tool tests). No local helpers in test files.
+6. **`_validate(model_cls, payload)` static helper** with `TypeVar("_M", bound=BaseModel)` is the canonical Pydantic-validation translator on `JamaClient`.
+7. **`Context` is a runtime import**, not TYPE_CHECKING. FastMCP's tool registration uses `typing.get_type_hints()` which resolves string annotations at runtime. `_Context = Context[Any, Any, Any]` alias satisfies mypy strict's `[type-arg]`. `JamaClient` and `FastMCP` stay under TYPE_CHECKING.
+8. **MCP-tool tests use synthetic `RequestContext` + `patch.object(server, "get_context", return_value=ctx)`** to inject the lifespan dict. FastMCP v1.27+ `call_tool` returns a `(unstructured, structured)` tuple; tests assert `result[1]` (or `result[1]["result"]` for list-returning tools).
+9. **`get_item` translates `JamaNotFoundError` to `{"found": false, item_id, message}`**; all other tools propagate exceptions normally. The asymmetry is documented in the `tools.py` module docstring.
+10. **`from __future__ import annotations`** on every `.py` (project-wide; inert on 3.12 but retained).
+11. **`-> NoReturn`** on functions that always raise (e.g., `JamaClient._raise_for_status`).
+12. **`logging_config.configure_logging(transport: str)`** — parameter is `str`, not `Literal`. Mypy strict's `warn_unreachable` flagged the `else` branch as unreachable under a Literal. The third test (`test_unknown_transport_raises_value_error`) needs to exercise that branch with a non-Literal value.
+13. **`FastMCP.__init__(host=..., port=...)`** — host/port are constructor arguments, not `run()` arguments. Verified via `inspect.signature(FastMCP.__init__)`.
+14. **Tool closures in `register()`** — six `@server.tool()` closures inside one `register()` function. Lazy-import `tools` inside `build_server` (with `# noqa: PLC0415`) avoids import cycles.
 
-## Sanctioned conventions established during Tasks 1–9
+## Plan corrections applied inline
 
-These came up during reviews and should be preserved (do NOT undo or re-litigate):
+The Phase 1 plan at `docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md` was updated inline at Tasks 3, 4, 8, 9, 11, 12, 13. Future re-runs should read HEAD's plan, not the original at `c402be1`. Notable corrections beyond Tasks 1–9:
 
-1. **Pydantic v2 serialization.** `_JamaModel` config uses `alias_generator=to_camel`, `populate_by_name=True`, `extra="allow"`, AND `serialize_by_alias=False` (so `model_dump()` returns snake_case for AI tool responses). Per-field `Field(alias=...)` is forbidden — use the alias generator.
-2. **Pytest collection guard.** Domain classes whose names start with `Test` (currently only `TestRun`) carry `__test__ = False` to suppress pytest's `PytestCollectionWarning`. Apply this idiom to any new `Test*` model classes.
-3. **403 → `JamaForbiddenError`.** Both `fetch_token` and `_request._raise_for_status` correctly distinguish 401 (`JamaAuthError`) from 403 (`JamaForbiddenError`). Don't conflate them.
-4. **`asyncio.sleep` patching in retry tests.** `tests/unit/jama_client/test_client_transport.py` patches `jama_client.client.asyncio.sleep` in retry tests so suite runtime stays under 0.2s. Continue this pattern for any future retry-policy tests (e.g., MCP-layer retries).
-5. **Shared test fixtures in `tests/conftest.py`.** `jama_credentials`, `jama_base_url`, `jama_token_url`, `jama_token_stub` are the canonical fixtures for `respx`-mocked client tests. Do NOT reintroduce local `_creds()` / `_BASE_URL` helpers in new test files. For MCP-tool tests (Task 13+), add a `mock_jama_client` fixture using the same naming pattern.
-6. **`_validate(model_cls, payload)` static helper** with `TypeVar("_M", bound=BaseModel)` is the canonical Pydantic-validation translator on `JamaClient`. Reuse it for any model coming from `_request`.
-7. **Pagination docstring.** All 4 list-returning client methods share the same Phase-2-forward-looking pagination disclosure paragraph. Keep this verbatim across new list-returning surfaces (e.g., MCP tool docstrings).
-8. **`from __future__ import annotations` is project convention** — retained on every `.py` even though inert on 3.12. Do not strip via UP rules.
-9. **`-> NoReturn`** on functions that always raise (e.g., `JamaClient._raise_for_status`). Tighten any new always-raise function's annotation.
-10. **`asyncio.sleep` patching, fixtures, `__test__`, alias generator** are codified in Task 21's CLAUDE.md update.
-
-## Known false positives (do not chase)
-
-- **VSCode "Even Better TOML" extension** repeatedly reports the `[tool.ruff.lint]` block (`pyproject.toml` lines 72/110/113) as schema-invalid. The extension's bundled JSON Schema doesn't recognize ruff's nested config. `tomllib.loads()` parses fine; `ruff check` is happy; pre-commit clean. Ignore.
-- **markdownlint warnings on `docs/superpowers/plans/2026-04-29-...md`** (MD032, MD031, MD040, MD060, MD010) — pre-existing, not blocked by pre-commit. Triage during Task 21 if desired.
-
-## Plan-vs-reality divergences (the live plan, not `c402be1`, is the source of truth)
-
-The plan file at `docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md` was updated inline during Tasks 3, 4, 8, and 9 (controller-sanctioned). Future re-runs should read HEAD's plan, not the original at `c402be1`. Notable corrections:
-- Task 3: `fetch_token` 401/403 split + `JamaForbiddenError` import.
-- Task 4: 7th test (`test_fetch_token_raises_unexpected_status`) + 403 test added; total now 14, not the original 12.
-- Task 8: `search_items` docstring aligned with `list_projects` (pagination paragraph + section ordering).
-- Task 9: `tests/test_smoke.py` (Phase 0 placeholder) deleted; new `tests/unit/test_smoke.py` is the smoke surface.
-
-## `pyproject.toml` test per-file-ignores accumulated (12 entries)
-
-`S101, S105, S106, S311, ANN, B017, D, PLR2004, PT011, ARG, F401, PLC0415` — added incrementally as tasks needed them. Each addition is justified, but Task 21 should review whether `F401` should be scoped to `tests/unit/test_smoke.py` only rather than all `tests/**/*.py`.
+- Task 11: `transport: Transport` → `transport: str`; dropped unused `Transport` alias and `Literal` import.
+- Task 12: `host`/`port` moved to `FastMCP.__init__`; tightened lazy-import noqa from `F401, PLC0415` to `PLC0415`.
+- Task 13: `Context` runtime import + `_Context` alias; synthetic-context test pattern + `result[1]` indexing.
 
 ## Recent decisions
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-04-28 | Approach 1 (two-layer split) approved | Clean separation; client lib reusable later |
-| 2026-04-28 | Python 3.12 (not 3.13) | Broader compatibility for clone-and-play audience |
-| 2026-04-28 | mypy strict (blocking), not ty | Maturity signal — mypy is widely-recognized |
-| 2026-04-28 | Apache 2.0 license | Patent grant; contributor-friendly |
+| 2026-04-28 | Python 3.12; mypy strict; Apache 2.0 | Compatibility, maturity signal, contributor-friendly |
 | 2026-04-28 | Public GitHub from Day 1 | Public engineering deliverable from inception |
 | 2026-04-28 | FastMCP both transports (stdio + streamable-http) | Same module supports both |
-| 2026-04-28 | Three-phase deployment plan (P1 code, P2 Docker, P3 K8s) | Clean troubleshooting boundaries |
-| 2026-04-28 | Professional portrayal constraint binding via `validate-docs-placement.sh` | Mechanical enforcement |
-| 2026-04-29 | Dependabot bumps (#1, #2, #3) merged + Dependency Graph enabled | Phase 0 fully closed |
-| 2026-04-29 | Phase 1 split across two sessions at Task 9/10 boundary | Controller context stays tight; jama_client done is a clean handoff seam |
-| 2026-04-29 | Pydantic alias generator (`to_camel` + `populate_by_name=True`) over per-field aliases | Idiomatic; avoids `N815` ruff rule on camelCase attributes |
-| 2026-04-29 | `403 → JamaForbiddenError` (not `JamaAuthError`) | Operational distinction: 403 = scope/permission wrong; 401 = bad credentials |
-| 2026-04-29 | Shared `tests/conftest.py` fixtures established at Task 6 | Avoid duplication across `test_auth.py`, `test_client_transport.py`, `test_client_operations.py` |
+| 2026-04-29 | Pydantic alias generator over per-field aliases | Idiomatic; avoids `N815` ruff rule on camelCase attrs |
+| 2026-04-29 | `403 → JamaForbiddenError` (not `JamaAuthError`) | Operational distinction: 403 = scope/permission; 401 = bad credentials |
+| 2026-04-29 | Phase 1 split across multiple sessions at Tasks 9/10 boundary | Controller context stays tight |
+| 2026-04-29 | `Context` runtime import + synthetic-context test pattern | FastMCP's `get_type_hints` requires runtime presence; `call_tool` returns a tuple |
+| 2026-04-29 | Six MCP tools landed; live OAuth flow validated against `pm2.jamacloud.com` | Phase 1 feature-complete |
 
 ## Known constraints
 
@@ -94,7 +76,7 @@ The plan file at `docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-func
 ## References
 
 - Design spec: [`docs/superpowers/specs/2026-04-28-jama-mcp-server-design.md`](docs/superpowers/specs/2026-04-28-jama-mcp-server-design.md)
-- Phase 1 plan (live; updated inline through Task 9): [`docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md`](docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md)
+- Phase 1 plan (live; updated inline): [`docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md`](docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md)
 - Phase 0 plan: [`docs/superpowers/plans/2026-04-28-jama-mcp-server-phase-0-initialization.md`](docs/superpowers/plans/2026-04-28-jama-mcp-server-phase-0-initialization.md)
 - Conventions: [`CLAUDE.md`](CLAUDE.md)
 - Author's global Claude Code protocols: `~/.claude/CLAUDE.md`
