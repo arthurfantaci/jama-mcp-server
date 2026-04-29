@@ -2,20 +2,20 @@
 
 ## Current phase
 
-**Phase 1 — Functional MVP (complete pending PR merge)**
+**Phase 2 — Docker containerization (planned, not yet started)**
 
-**Active branch:** `feat/phase-1-functional-mvp`
-**Open PR:** opens at Task 22 of the Phase 1 plan
-**Tracking issue:** [#4](https://github.com/arthurfantaci/jama-mcp-server/issues/4)
+**Active branch:** `main`
+**Open PR:** none
+**Most recent merge:** [PR #5](https://github.com/arthurfantaci/jama-mcp-server/pull/5) — Phase 1 Functional MVP (squash-merged 2026-04-29)
 
-**Next phase:** Phase 2 — Docker containerization (planned).
+**Next action:** open Phase 2 tracking issue and create `feat/phase-2-docker` branch when ready to begin Docker work.
 
 ## Phase status
 
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 0 | Repository scaffolding, CI/CD, memory hygiene apparatus | Complete |
-| 1 | Functional MVP — six client operations + six MCP tools, both transports | Complete pending PR |
+| 1 | Functional MVP — six client operations + six MCP tools, both transports | Complete (PR #5 merged 2026-04-29) |
 | 2 | Docker containerization | Planned |
 | 3 | Kubernetes deployment (Minikube) | Planned |
 
@@ -65,6 +65,8 @@ The Phase 1 plan at `docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-f
 | 2026-04-29 | Phase 1 split across multiple sessions at Tasks 9/10 boundary | Controller context stays tight |
 | 2026-04-29 | `Context` runtime import + synthetic-context test pattern | FastMCP's `get_type_hints` requires runtime presence; `call_tool` returns a tuple |
 | 2026-04-29 | Six MCP tools landed; live OAuth flow validated against `pm2.jamacloud.com` | Phase 1 feature-complete |
+| 2026-04-29 | `get_test_runs_for_item` endpoint corrected from `/items/{id}/testruns` to `/testruns?testCase={id}` | Discovered during MCP Inspector smoke; Task 19 Step 4 sanctioned correction loop |
+| 2026-04-29 | Phase 1 PR #5 squash-merged to main; CI green across all 5 checks | Phase 1 closed |
 
 ## Known constraints
 
