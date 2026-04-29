@@ -6,9 +6,9 @@ tuple of (unstructured_content, structured_content) when a tool has an output
 schema; the tests use the structured half (result[1]) for assertions so they
 are not coupled to JSON serialisation details.
 
-Note: Item, Relationship, and TestRun are imported in anticipation of the
-tests that Tasks 14-17 will append to this file.  The per-file ruff ignores
-on tests/**/*.py suppress F401 for forward-looking imports.
+Note: All six tool tests are present (whoami, list_projects, get_item,
+search_items, get_downstream_relationships, get_test_runs_for_item).
+Imports are tightly scoped — each model class is now used.
 """
 
 from __future__ import annotations
@@ -138,3 +138,18 @@ async def test_get_downstream_relationships_returns_ai_shaped_list(
     rels: list[dict[str, Any]] = result[1]["result"]
     assert rels[0]["from_item"] == 42
     assert rels[0]["to_item"] == 84
+
+
+async def test_get_test_runs_for_item_returns_ai_shaped_list(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    server, client = server_with_mock_client
+    client.get_test_runs_for_item.return_value = [
+        TestRun(id=7001, document_key="DEMO-TR-1"),
+    ]
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        result = await server.call_tool("get_test_runs_for_item", {"item_id": 42})
+    runs: list[dict[str, Any]] = result[1]["result"]
+    assert runs[0]["id"] == 7001
+    assert runs[0]["document_key"] == "DEMO-TR-1"

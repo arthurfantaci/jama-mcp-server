@@ -77,3 +77,12 @@ def register(server: FastMCP) -> None:
         """Return downstream relationships originating from ``item_id``."""
         rels = await _client(ctx).get_downstream_relationships(item_id)
         return [rel.model_dump() for rel in rels]
+
+    @server.tool()
+    async def get_test_runs_for_item(
+        ctx: _Context,
+        item_id: int,
+    ) -> list[dict[str, Any]]:
+        """Return test runs that exercise ``item_id``."""
+        runs = await _client(ctx).get_test_runs_for_item(item_id)
+        return [run.model_dump() for run in runs]
