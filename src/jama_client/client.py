@@ -30,7 +30,7 @@ from jama_client.exceptions import (
     JamaServerError,
     JamaValidationError,
 )
-from jama_client.models import Project, User
+from jama_client.models import Item, Project, User
 
 _M = TypeVar("_M", bound=BaseModel)
 
@@ -117,6 +117,36 @@ class JamaClient:
         """
         data = await self._request("GET", "/rest/latest/projects")
         return [self._validate(Project, item) for item in data]
+
+    async def get_item(self, item_id: int) -> Item:
+        """Return a single Jama item by ID.
+
+        Args:
+            item_id: The Jama internal item ID.
+
+        Raises:
+            JamaNotFoundError: When the item does not exist.
+        """
+        data = await self._request("GET", f"/rest/latest/items/{item_id}")
+        return self._validate(Item, data)
+
+    async def search_items(self, project_id: int, query: str) -> list[Item]:
+        """Search Jama items within a project for ``query``.
+
+        Args:
+            project_id: The Jama project ID to scope the search.
+            query: Free-text search query (matched against item content).
+
+        Pagination metadata (``meta.pageInfo``) is discarded by the default
+        envelope-unwrapping behaviour; only the first page of results is
+        returned.
+        """
+        data = await self._request(
+            "GET",
+            "/rest/latest/abstractitems",
+            params={"project": project_id, "contains": query},
+        )
+        return [self._validate(Item, item) for item in data]
 
     @staticmethod
     def _validate(model_cls: type[_M], payload: Any) -> _M:

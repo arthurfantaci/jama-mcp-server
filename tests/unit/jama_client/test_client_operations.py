@@ -6,10 +6,12 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 import respx
 
 from jama_client.client import JamaClient
-from jama_client.models import Project, User
+from jama_client.exceptions import JamaNotFoundError
+from jama_client.models import Item, Project, User
 
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "jama_responses"
 
@@ -52,3 +54,54 @@ async def test_list_projects_returns_list_of_project_models(
     assert len(projects) == 2
     assert all(isinstance(p, Project) for p in projects)
     assert {p.project_key for p in projects} == {"DEMO", "PILOT"}
+
+
+@respx.mock
+async def test_get_item_returns_item_model(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    respx.get(f"{jama_base_url}/rest/latest/items/42").mock(
+        return_value=httpx.Response(200, json=_fixture("items_get.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        item = await client.get_item(42)
+    assert isinstance(item, Item)
+    assert item.id == 42
+    assert item.document_key == "DEMO-REQ-7"
+
+
+@respx.mock
+async def test_get_item_propagates_not_found(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    respx.get(f"{jama_base_url}/rest/latest/items/999").mock(return_value=httpx.Response(404))
+    async with JamaClient(jama_credentials) as client:
+        with pytest.raises(JamaNotFoundError):
+            await client.get_item(999)
+
+
+@respx.mock
+async def test_search_items_returns_items_within_project(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    route = respx.get(f"{jama_base_url}/rest/latest/abstractitems").mock(
+        return_value=httpx.Response(200, json=_fixture("abstractitems_search.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        items = await client.search_items(project_id=1, query="OAuth")
+    assert len(items) == 1
+    assert items[0].document_key == "DEMO-REQ-7"
+    assert route.calls.last.request.url.params["project"] == "1"
+    assert route.calls.last.request.url.params["contains"] == "OAuth"
