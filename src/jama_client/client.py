@@ -30,7 +30,7 @@ from jama_client.exceptions import (
     JamaServerError,
     JamaValidationError,
 )
-from jama_client.models import Item, Project, User
+from jama_client.models import Item, Project, Relationship, TestRun, User
 
 _M = TypeVar("_M", bound=BaseModel)
 
@@ -133,13 +133,15 @@ class JamaClient:
     async def search_items(self, project_id: int, query: str) -> list[Item]:
         """Search Jama items within a project for ``query``.
 
+        Pagination metadata (``meta.pageInfo``) is discarded by the default
+        envelope-unwrapping behaviour. Phase 2 may revisit pagination by
+        passing ``return_envelope=True`` and surfacing ``pageInfo`` to
+        callers; for Phase 1 the first page is sufficient for the
+        traceability slice.
+
         Args:
             project_id: The Jama project ID to scope the search.
             query: Free-text search query (matched against item content).
-
-        Pagination metadata (``meta.pageInfo``) is discarded by the default
-        envelope-unwrapping behaviour; only the first page of results is
-        returned.
         """
         data = await self._request(
             "GET",
@@ -147,6 +149,45 @@ class JamaClient:
             params={"project": project_id, "contains": query},
         )
         return [self._validate(Item, item) for item in data]
+
+    async def get_downstream_relationships(self, item_id: int) -> list[Relationship]:
+        """Return downstream relationships originating from ``item_id``.
+
+        Pagination metadata (``meta.pageInfo``) is discarded by the default
+        envelope-unwrapping behaviour. Phase 2 may revisit pagination by
+        passing ``return_envelope=True`` and surfacing ``pageInfo`` to
+        callers; for Phase 1 the first page is sufficient for the
+        traceability slice.
+
+        Args:
+            item_id: The Jama internal item ID.
+
+        Raises:
+            JamaNotFoundError: When the item does not exist.
+        """
+        data = await self._request(
+            "GET",
+            f"/rest/latest/items/{item_id}/downstreamrelationships",
+        )
+        return [self._validate(Relationship, rel) for rel in data]
+
+    async def get_test_runs_for_item(self, item_id: int) -> list[TestRun]:
+        """Return test runs that exercise ``item_id``.
+
+        Pagination metadata (``meta.pageInfo``) is discarded by the default
+        envelope-unwrapping behaviour. Phase 2 may revisit pagination by
+        passing ``return_envelope=True`` and surfacing ``pageInfo`` to
+        callers; for Phase 1 the first page is sufficient for the
+        traceability slice.
+
+        Args:
+            item_id: The Jama internal item ID.
+
+        Raises:
+            JamaNotFoundError: When the item does not exist.
+        """
+        data = await self._request("GET", f"/rest/latest/items/{item_id}/testruns")
+        return [self._validate(TestRun, run) for run in data]
 
     @staticmethod
     def _validate(model_cls: type[_M], payload: Any) -> _M:

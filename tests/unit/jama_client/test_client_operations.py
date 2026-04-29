@@ -11,7 +11,7 @@ import respx
 
 from jama_client.client import JamaClient
 from jama_client.exceptions import JamaNotFoundError
-from jama_client.models import Item, Project, User
+from jama_client.models import Item, Project, Relationship, TestRun, User
 
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "jama_responses"
 
@@ -105,3 +105,40 @@ async def test_search_items_returns_items_within_project(
     assert items[0].document_key == "DEMO-REQ-7"
     assert route.calls.last.request.url.params["project"] == "1"
     assert route.calls.last.request.url.params["contains"] == "OAuth"
+
+
+@respx.mock
+async def test_get_downstream_relationships_returns_relationship_models(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    respx.get(f"{jama_base_url}/rest/latest/items/42/downstreamrelationships").mock(
+        return_value=httpx.Response(200, json=_fixture("items_downstream_relationships.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        rels = await client.get_downstream_relationships(42)
+    assert len(rels) == 1
+    assert isinstance(rels[0], Relationship)
+    assert rels[0].from_item == 42
+    assert rels[0].to_item == 84
+
+
+@respx.mock
+async def test_get_test_runs_for_item_returns_test_run_models(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    respx.get(f"{jama_base_url}/rest/latest/items/42/testruns").mock(
+        return_value=httpx.Response(200, json=_fixture("items_test_runs.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        runs = await client.get_test_runs_for_item(42)
+    assert len(runs) == 1
+    assert isinstance(runs[0], TestRun)
+    assert runs[0].fields["testRunStatus"] == "PASSED"
