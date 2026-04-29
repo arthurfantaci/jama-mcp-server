@@ -72,6 +72,30 @@ uv run pytest -m integration
 
 The integration suite hits the real Jamacloud sandbox and is skipped automatically when `JAMA_OAUTH_CLIENT_ID` or `JAMA_OAUTH_CLIENT_SECRET` are unset.
 
+## Step 8: Run the MCP server (stdio transport)
+
+```bash
+uv run jama-mcp-stdio
+```
+
+The server reads `MCP_TRANSPORT=stdio` from `.env` (or defaults to stdio if unset) and waits on stdin for JSON-RPC requests. Press `Ctrl-C` to stop.
+
+## Step 9: Run the MCP server (streamable-HTTP transport)
+
+```bash
+MCP_TRANSPORT=streamable-http uv run jama-mcp-http
+```
+
+The server binds to `MCP_HTTP_HOST:MCP_HTTP_PORT` (default `127.0.0.1:8765`) and exposes the streamable-HTTP transport at `/mcp`. Logs go to stdout in this mode (the convention for container deployments).
+
+## Step 10: Connect via MCP Inspector
+
+```bash
+npx @modelcontextprotocol/inspector uv run jama-mcp-stdio
+```
+
+The Inspector launches the server as a subprocess, lists the six registered tools, and lets you invoke each one interactively. Invoking `whoami` is the fastest end-to-end smoke test — it round-trips through the server, authenticates against Jamacloud, and returns your authenticated user.
+
 ## Phase status
 
-This setup guide is current as of Phase 0 scaffolding. Phase 1 (functional MVP) and beyond will extend this document with transport-specific run instructions, MCP Inspector configuration, and (in Phase 2) Docker quickstart.
+Setup guide reflects Phase 1 (functional MVP, complete). Phase 2 (Docker containerization) and Phase 3 (Kubernetes / Minikube) will extend this document. See [`docs/superpowers/specs/`](superpowers/specs/) for the full design.

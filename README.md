@@ -7,7 +7,7 @@ A Model Context Protocol (MCP) server providing programmatic access to a hosted 
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 0     | Repository scaffolding, CI/CD, memory hygiene apparatus | Complete |
-| 1     | Functional MVP — six MCP tools demonstrating end-to-end traceability | Planned |
+| 1     | Functional MVP — six MCP tools demonstrating end-to-end traceability | Complete |
 | 2     | Docker containerization | Planned |
 | 3     | Kubernetes deployment (Minikube) | Planned |
 
@@ -35,8 +35,6 @@ The Phase 1 MVP exposes six MCP tools demonstrating Jama Connect's signature req
 
 ## Quick start
 
-> **Phase 1 not yet implemented.** The commands below show the eventual flow; they will not produce a functional server until Phase 1 lands.
-
 ```bash
 git clone https://github.com/arthurfantaci/jama-mcp-server.git
 cd jama-mcp-server
@@ -45,6 +43,25 @@ cp .env.example .env
 # Populate .env with your Jamacloud OAuth credentials.
 uv run jama-mcp-stdio
 ```
+
+Smoke-test the server with the MCP Inspector:
+
+```bash
+npx @modelcontextprotocol/inspector uv run jama-mcp-stdio
+```
+
+The Inspector lists six tools; invoking `whoami` round-trips through the server to your Jamacloud sandbox and returns the authenticated user.
+
+## Tool reference
+
+| Tool | Arguments | Returns |
+|------|-----------|---------|
+| `whoami` | none | The authenticated user. |
+| `list_projects` | none | Accessible Jama projects (first page). |
+| `get_item` | `item_id: int` | The item, or `{"found": false, ...}` on 404. |
+| `search_items` | `project_id: int`, `query: str` | Items within the project matching the query. |
+| `get_downstream_relationships` | `item_id: int` | Downstream relationships from the item. |
+| `get_test_runs_for_item` | `item_id: int` | Test runs that exercise the item. |
 
 ## Configuration
 
