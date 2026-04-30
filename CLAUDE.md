@@ -76,7 +76,7 @@ uv run pytest -m "not integration"
 This project maintains two memory tiers:
 
 - **Public** (in repo, version-controlled): `CLAUDE.md` (this file, ~150 lines max), `MEMORY.md` (~100 lines max), `docs/superpowers/{specs,plans}/`.
-- **Private** (per-user): `~/.claude/projects/-Users-arthurfantaci-jama-mcp-server/{CLAUDE.md, memory/MEMORY.md}`, plus the Knowledge Graph via the `memory` MCP server.
+- **Private** (per-user): `~/.claude/projects/-Users-arthurfantaci-jama-mcp-server/memory/MEMORY.md` (auto-memory tier with companion fact files), plus the Knowledge Graph via the `memory` MCP server. The user-private project-scoped `CLAUDE.md` is intentionally unused for this project — project conventions live in the public `CLAUDE.md` above; cross-project knowledge lives in the KG.
 
 **Slash commands:**
 
@@ -93,7 +93,8 @@ See [`.claude/skills/memory-hygiene/SKILL.md`](.claude/skills/memory-hygiene/SKI
 The author's `~/.claude/CLAUDE.md` defines:
 
 - Knowledge Graph Memory Protocol (when to write to KG via `memory` MCP server).
-- Context Recovery Protocol (re-establishing state after compaction).
+- Context Recovery Protocol (re-establishing state at the receiving end of a fresh session).
+- Session Handoff Protocol (commit + MEMORY.md row + copy-paste-ready prompt when deferring work to a fresh session).
 - Phase Handoff Protocol (cross-phase memory hygiene).
 - Pre-Compaction Protocol (persist findings before auto-compact).
 

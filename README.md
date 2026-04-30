@@ -52,6 +52,47 @@ npx @modelcontextprotocol/inspector uv run jama-mcp-stdio
 
 The Inspector lists six tools; invoking `whoami` round-trips through the server to your Jamacloud sandbox and returns the authenticated user.
 
+## Docker quickstart
+
+Run the streamable-HTTP transport in a container.
+
+**One-time setup** — copy the env template and fill in your Jama OAuth credentials:
+
+```bash
+cp .env.example .env
+$EDITOR .env  # set JAMA_OAUTH_CLIENT_ID and JAMA_OAUTH_CLIENT_SECRET
+```
+
+(See [Configuration](#configuration) for how to provision an OAuth credential
+in Jama Connect.)
+
+**Build and start the container:**
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+curl http://localhost:8765/health  # {"status":"ok"}
+```
+
+Compose sets `MCP_TRANSPORT=streamable-http` and `MCP_HTTP_HOST=0.0.0.0`
+inside the container regardless of what your `.env` says — only the OAuth
+credentials and `JAMA_BASE_URL` come from `.env`.
+
+**Connect with MCP Inspector:**
+
+```bash
+npx @modelcontextprotocol/inspector
+# Then point it at http://localhost:8765/mcp
+```
+
+The container runs as a non-root user (UID 1001), exposes only port 8765,
+and reads configuration from your `.env` via Compose's `env_file` directive.
+
+**Stop with:**
+
+```bash
+docker compose -f docker/docker-compose.yml down
+```
+
 ## Tool reference
 
 | Tool | Arguments | Returns |

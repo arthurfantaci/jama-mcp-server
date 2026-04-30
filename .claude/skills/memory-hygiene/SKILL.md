@@ -12,10 +12,12 @@ Audit and update Claude's memory files to prevent stale context across sessions.
 
 ```text
 ~/.claude/projects/-Users-arthurfantaci-jama-mcp-server/
-├── CLAUDE.md        # Author's private session instructions (~150 lines max)
 └── memory/
-    └── MEMORY.md    # Accumulated session learnings (~100 lines max)
+    ├── MEMORY.md                       # Index of auto-memory entries (~100 lines max)
+    └── <type>_<topic>.md               # Auto-memory fact files (user/feedback/project/reference)
 ```
+
+> The user-private project-scoped `CLAUDE.md` tier is intentionally unused for this project; project conventions live in the public `CLAUDE.md` (see "Memory hygiene" section there).
 
 ```text
 <repo-root>/
@@ -57,7 +59,6 @@ In `MEMORY.md`, keep only the last 5–10 significant decisions or PRs. Remove o
 
 ```bash
 wc -l CLAUDE.md MEMORY.md
-wc -l ~/.claude/projects/-Users-arthurfantaci-jama-mcp-server/CLAUDE.md
 wc -l ~/.claude/projects/-Users-arthurfantaci-jama-mcp-server/memory/MEMORY.md
 ```
 
@@ -76,6 +77,18 @@ Review any "Patterns" or "Gotchas" sections. Remove patterns that have been refa
 - The next planned task or PR.
 
 If the phase has just transitioned, run the Phase Handoff Protocol from the author's global `~/.claude/CLAUDE.md`.
+
+### 7. Compare KG tool-name references against the live tool list
+
+Stale tool names in instructional prose are silently overridden by the model at runtime but obscure protocol drift. After `mcp-neo4j-memory` updates (or as a periodic check), scan for known-stale identifiers in living instructional surfaces:
+
+```bash
+grep -n 'search_nodes\|open_nodes' ~/.claude/CLAUDE.md .claude/skills/memory-hygiene/SKILL.md MEMORY.md CLAUDE.md
+```
+
+Cross-check live tool names against `mcp__memory__*` (visible in the session's available-tools list). Update prose only on living surfaces — never edit the date-stamped audit at `~/.claude/claude-code-config-audit.md`, which is preserved as a historical artifact.
+
+The scan above uses known-stale strings; the underlying principle — *compare protocol prose against the live tool surface* — also catches future drift involving names not yet anticipated.
 
 ## When to run this skill
 

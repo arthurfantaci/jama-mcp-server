@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp import FastMCP
+from starlette.responses import JSONResponse
 
 from jama_client import JamaClient, OAuthCredentials
 from jama_mcp_server.config import Settings
@@ -13,6 +14,8 @@ from jama_mcp_server.logging_config import configure_logging
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
+
+    from starlette.requests import Request
 
 
 def _default_client_factory(settings: Settings) -> JamaClient:
@@ -38,6 +41,17 @@ async def jama_lifespan(
         yield {"jama_client": client}
 
 
+async def _health(_request: Request) -> JSONResponse:
+    """Return a static liveness payload for HTTP healthcheck probes.
+
+    The handler is intentionally cheap and stateless: it does not touch
+    the JamaClient or any external service. A deeper readiness probe
+    (e.g., verifying the OAuth token is fresh) is a Phase 3 concern when
+    K8s separates liveness from readiness.
+    """
+    return JSONResponse({"status": "ok"})
+
+
 def build_server(*, settings: Settings | None = None) -> FastMCP:
     """Build a :class:`FastMCP` instance bound to the given settings."""
     cfg = settings or Settings()
@@ -54,7 +68,11 @@ def build_server(*, settings: Settings | None = None) -> FastMCP:
         lifespan=_bound_lifespan,
     )
 
-    # Register tools (Task 13+ populates these).
+    # Register the liveness probe before tools so the route is available
+    # the moment the streamable-HTTP server begins accepting connections.
+    server.custom_route("/health", methods=["GET"])(_health)
+
+    # Register tools.
     from jama_mcp_server import tools  # noqa: PLC0415
 
     tools.register(server)
