@@ -1,0 +1,44 @@
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# CI / tooling configs not needed in build context
+.github/
+
+# Python build artifacts and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Test / lint caches and reports
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Secrets — never bake into images
+.env
+.env.local
+.env.*.local
+
+# Project surfaces that don't belong in the runtime image
+tests/
+docs/
+.claude/
+
+# IDE / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
