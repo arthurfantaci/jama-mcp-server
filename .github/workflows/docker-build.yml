@@ -1,0 +1,51 @@
+name: Docker build
+
+on:
+  pull_request:
+    paths:
+      - 'docker/**'
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.dockerignore'
+      - '.github/workflows/docker-build.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docker/**'
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.dockerignore'
+
+jobs:
+  build:
+    name: Build image (no push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          load: true
+          tags: jama-mcp-server:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-check the built image (imports resolve)
+        run: |
+          docker run --rm --entrypoint python jama-mcp-server:ci \
+            -c "import jama_mcp_server, jama_client; print('imports ok')"
+
+      - name: Confirm runtime user is non-root
+        run: |
+          docker run --rm --entrypoint id jama-mcp-server:ci | grep 'uid=1001(jama)'
