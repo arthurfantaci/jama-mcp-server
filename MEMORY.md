@@ -67,6 +67,8 @@ The Phase 1 plan at `docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-f
 | 2026-04-29 | Six MCP tools landed; live OAuth flow validated against `pm2.jamacloud.com` | Phase 1 feature-complete |
 | 2026-04-29 | `get_test_runs_for_item` endpoint corrected from `/items/{id}/testruns` to `/testruns?testCase={id}` | Discovered during MCP Inspector smoke; Task 19 Step 4 sanctioned correction loop |
 | 2026-04-29 | Phase 1 PR #5 squash-merged to main; CI green across all 5 checks | Phase 1 closed |
+| 2026-04-30 | Cross-cutting hygiene: refreshed KG protocol tool names in global `~/.claude/CLAUDE.md` (`search_nodes` → `search_memories`); audit doc at `~/.claude/claude-code-config-audit.md` left unchanged as a 2026-03-09 snapshot | mcp-neo4j-memory API rename predates the 2026-03-09 audit; drift surfaced while repairing two typeless KG entities (`Priority Inversion (RLock Contention)` → `gotcha`, `ASGI Sub-Application Mounting` → `architectural_pattern`) which had been blocking `search_memories` calls with a Pydantic validation error |
+| 2026-04-30 | Phase 2 plan-writing deferred to a fresh Claude Code session | Controller-context discipline (cf. 2026-04-29 row "Phase 1 split across multiple sessions"); fresh-session next steps: KG search + design spec Section 10 → open Phase 2 issue → create `feat/phase-2-docker` (carries pending uncommitted docs from this session) → commit pending docs as `docs(claude):` preparatory commit → invoke `superpowers:brainstorming` → invoke `superpowers:writing-plans` |
 
 ## Known constraints
 

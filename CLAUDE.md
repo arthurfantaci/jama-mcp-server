@@ -76,7 +76,7 @@ uv run pytest -m "not integration"
 This project maintains two memory tiers:
 
 - **Public** (in repo, version-controlled): `CLAUDE.md` (this file, ~150 lines max), `MEMORY.md` (~100 lines max), `docs/superpowers/{specs,plans}/`.
-- **Private** (per-user): `~/.claude/projects/-Users-arthurfantaci-jama-mcp-server/{CLAUDE.md, memory/MEMORY.md}`, plus the Knowledge Graph via the `memory` MCP server.
+- **Private** (per-user): `~/.claude/projects/-Users-arthurfantaci-jama-mcp-server/memory/MEMORY.md` (auto-memory tier with companion fact files), plus the Knowledge Graph via the `memory` MCP server. The user-private project-scoped `CLAUDE.md` is intentionally unused for this project — project conventions live in the public `CLAUDE.md` above; cross-project knowledge lives in the KG.
 
 **Slash commands:**
 
