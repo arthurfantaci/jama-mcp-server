@@ -2,13 +2,13 @@
 
 ## Current phase
 
-**Phase 2 — Docker containerization (planned, not yet started)**
+**Phase 2 — Docker containerization (active)**
 
-**Active branch:** `main`
-**Open PR:** none
+**Active branch:** `feat/phase-2-docker`
+**Tracking issue:** [#6](https://github.com/arthurfantaci/jama-mcp-server/issues/6)
 **Most recent merge:** [PR #5](https://github.com/arthurfantaci/jama-mcp-server/pull/5) — Phase 1 Functional MVP (squash-merged 2026-04-29)
 
-**Next action:** open Phase 2 tracking issue and create `feat/phase-2-docker` branch when ready to begin Docker work.
+**Next action:** execute the Phase 2 plan at [`docs/superpowers/plans/2026-04-30-jama-mcp-server-phase-2-docker.md`](docs/superpowers/plans/2026-04-30-jama-mcp-server-phase-2-docker.md). On completion, open the Phase 2 PR closing #6.
 
 ## Phase status
 
@@ -70,6 +70,10 @@ The Phase 1 plan at `docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-f
 | 2026-04-30 | Cross-cutting hygiene: refreshed KG protocol tool names in global `~/.claude/CLAUDE.md` (`search_nodes` → `search_memories`); audit doc at `~/.claude/claude-code-config-audit.md` left unchanged as a 2026-03-09 snapshot | mcp-neo4j-memory API rename predates the 2026-03-09 audit; drift surfaced while repairing two typeless KG entities (`Priority Inversion (RLock Contention)` → `gotcha`, `ASGI Sub-Application Mounting` → `architectural_pattern`) which had been blocking `search_memories` calls with a Pydantic validation error |
 | 2026-04-30 | Phase 2 plan-writing deferred to a fresh Claude Code session | Controller-context discipline (cf. 2026-04-29 row "Phase 1 split across multiple sessions"); fresh-session next steps: KG search + design spec Section 10 → open Phase 2 issue → create `feat/phase-2-docker` (carries pending uncommitted docs from this session) → commit pending docs as `docs(claude):` preparatory commit → invoke `superpowers:brainstorming` → invoke `superpowers:writing-plans` |
 | 2026-04-30 | Phase 2 plan written and committed on `feat/phase-2-docker` at [`docs/superpowers/plans/2026-04-30-jama-mcp-server-phase-2-docker.md`](docs/superpowers/plans/2026-04-30-jama-mcp-server-phase-2-docker.md); execution deferred to a fresh session using `superpowers:subagent-driven-development` | Controller-context discipline (same rationale as the 2026-04-29 Phase 1 Tasks 9/10 split and the 2026-04-30 hygiene → plan-writing split). Fresh-session next steps: read CLAUDE.md + MEMORY.md + KG → read the plan → dispatch task-by-task per `superpowers:subagent-driven-development`. Issue [#6](https://github.com/arthurfantaci/jama-mcp-server/issues/6) is open; branch is pushed; ten tasks ready for execution |
+| 2026-04-30 | Phase 2 base image: `python:3.12-slim-bookworm` runtime + `ghcr.io/astral-sh/uv:python3.12-bookworm-slim` builder, multi-stage with venv copy across stages | Local-dev/demo target favors slim's debug ergonomics over distroless's minimum attack surface; uv builder image gives lockfile-pinned dependencies end-to-end and matches local-dev tooling exactly |
+| 2026-04-30 | Phase 2 healthcheck: add `/health` route via `FastMCP.custom_route` + Python stdlib urllib probe | Stable probe semantics (vs probing /mcp with awkward 4xx-as-alive); no curl install needed; future-proofs Phase 3 K8s liveness/readiness probes which will reuse the same endpoint |
+| 2026-04-30 | Phase 2 CI: build-only on PR + main with path filters + GHA buildx cache | Catches Dockerfile drift cheaply (~30s warm rebuild); image push deferred to Phase 3 when a deployment consumer (Minikube) justifies registry permissions and a tag strategy |
+| 2026-04-30 | Phase 2 spec doc: no new spec written; decisions live in plan + this MEMORY.md | Existing design spec Section 10 sanctions deliverables; plan-author decisions belong in the implementation plan as task-level rationale, with an index-row summary here. Matches Phase 1's pattern (no separate decisions doc) |
 
 ## Known constraints
 
