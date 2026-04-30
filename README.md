@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server providing programmatic access to a hosted 
 |-------|-------------|--------|
 | 0     | Repository scaffolding, CI/CD, memory hygiene apparatus | Complete |
 | 1     | Functional MVP — six MCP tools demonstrating end-to-end traceability | Complete |
-| 2     | Docker containerization | Planned |
+| 2     | Docker containerization | Complete |
 | 3     | Kubernetes deployment (Minikube) | Planned |
 
 The full design is published in [`docs/superpowers/specs/2026-04-28-jama-mcp-server-design.md`](docs/superpowers/specs/2026-04-28-jama-mcp-server-design.md).
