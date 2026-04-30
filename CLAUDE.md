@@ -93,7 +93,8 @@ See [`.claude/skills/memory-hygiene/SKILL.md`](.claude/skills/memory-hygiene/SKI
 The author's `~/.claude/CLAUDE.md` defines:
 
 - Knowledge Graph Memory Protocol (when to write to KG via `memory` MCP server).
-- Context Recovery Protocol (re-establishing state after compaction).
+- Context Recovery Protocol (re-establishing state at the receiving end of a fresh session).
+- Session Handoff Protocol (commit + MEMORY.md row + copy-paste-ready prompt when deferring work to a fresh session).
 - Phase Handoff Protocol (cross-phase memory hygiene).
 - Pre-Compaction Protocol (persist findings before auto-compact).
 
