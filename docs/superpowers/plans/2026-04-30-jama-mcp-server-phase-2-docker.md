@@ -409,7 +409,11 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
-# Layer 2: install the project itself. Re-runs only when src/ changes.
+# Layer 2: install the project itself. README.md is required because
+# pyproject.toml declares `readme = "README.md"`, which hatchling reads
+# during package-metadata validation when uv installs the project.
+# Re-runs when src/ or README.md changes.
+COPY README.md ./
 COPY src/ ./src/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
