@@ -24,6 +24,8 @@ This repository is public on GitHub from inception and is reviewed by potential 
 - `src/jama_client/` — async Jamacloud REST client. Owns auth, transport, models, exceptions.
 - `src/jama_mcp_server/` — FastMCP server, tool definitions, transport entry points, lifespan management.
 - `tests/{unit,integration}/` — three-tier test suite (unit, integration, MCP-protocol).
+- `docker/` — Phase 2 containerization: `Dockerfile` (multi-stage, uv builder + slim runtime, non-root UID 1001) and `docker-compose.yml` (single-service, env_file + transport overrides, port 8765, healthcheck on `/health`).
+- `.github/workflows/` — CI: Lint, Mypy strict, Test, Dependency Review, codecov, and Phase 2's Docker build (build-only, GHA buildx cache).
 - `docs/superpowers/specs/` — design specifications.
 - `docs/superpowers/plans/` — implementation plans.
 
@@ -54,6 +56,20 @@ Patterns discovered or sanctioned during Phase 1. Apply uniformly to new code.
 - **`from __future__ import annotations`** on every `.py` (project-wide).
 - **`-> NoReturn`** on functions that always raise.
 - **Lazy import inside `build_server`**: `from jama_mcp_server import tools  # noqa: PLC0415` — intentional to avoid import cycles.
+
+## Phase 2 conventions codified
+
+Patterns discovered or sanctioned during Phase 2 (Docker containerization). Apply uniformly to new code that touches the deployment surface.
+
+- **`_health` is module-level**, not a closure inside `build_server`. Registered imperatively via `server.custom_route("/health", methods=["GET"])(_health)` BEFORE tool registration so the route is available the moment streamable-HTTP starts accepting connections. Module-level placement also makes the handler directly unit-testable without exercising the lifespan or `JamaClient`.
+- **Multi-stage Dockerfile uses two-step `uv sync`.** Layer 1 (`COPY pyproject.toml uv.lock`) runs `uv sync --frozen --no-install-project --no-dev`. Layer 2 (`COPY README.md ./` then `COPY src/`) runs `uv sync --frozen --no-dev`. `README.md` MUST be in Layer 2 because `pyproject.toml` declares `readme = "README.md"` and hatchling reads it during package-metadata validation. Without that COPY, the build fails with `OSError: Readme file does not exist`.
+- **`UV_LINK_MODE=copy`** in the builder is required for cross-stage `COPY --from=builder` to work across Docker's union FS (hardlinks don't survive cross-stage copy).
+- **`.dockerignore` lives at repo ROOT**, not in `docker/`. Compose's `context: ..` makes the build context the repo root, which is where Docker reads `.dockerignore` from.
+- **Dockerfile `HEALTHCHECK` and Compose `healthcheck:` are intentionally duplicated** (same Python-stdlib `urllib` probe of `/health`). Compose users get one via the service block; `docker run` users without compose get one via the Dockerfile directive. Future maintenance MUST keep them in sync.
+- **`name: jama-mcp-server`** at the top of `docker/docker-compose.yml`. Without it, Compose derives the project name from the compose file's parent directory (`docker`), producing identifiers like `docker-jama-mcp-server-1`.
+- **Fixed UID/GID 1001 (`jama` user)** in Dockerfile RUN. Pinned for Phase 3 K8s `securityContext.runAsUser` parity. The `useradd warning: jama's uid 1001 is greater than SYS_UID_MAX 999` in the build log is expected and intentional.
+- **Compose `environment:` block overrides `MCP_TRANSPORT`/`MCP_HTTP_HOST`/`MCP_HTTP_PORT`** for the container regardless of `.env`. This lets a user's `.env` set up for native stdio runs work with Docker without edits. `.env.example` documents the precedence so users don't troubleshoot this.
+- **Pydantic Settings defaults stay at `mcp_http_host="127.0.0.1"`** (loopback, safe for native runs). The container overrides via the Compose `environment:` block, never via Settings default — protects native runs from accidental LAN exposure.
 
 ## Tooling rigor
 
