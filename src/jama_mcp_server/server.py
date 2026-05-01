@@ -80,6 +80,42 @@ async def _health(_request: Request) -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
+async def _readyz(_request: Request) -> JSONResponse:
+    """Return a deeper readiness payload that drives Kubernetes readiness probes.
+
+    Unlike liveness (``/health``, static), readiness reflects whether the
+    Pod should remain in the Service's endpoint pool. For this server that
+    means: the JamaClient is initialized AND its cached OAuth token is
+    fresh (not aged beyond 90 percent of TTL).
+
+    The check is in-memory only (no I/O to Jamacloud) so that K8s probing
+    every few seconds does not pressure the upstream OAuth endpoint. The
+    lifespan's eager :meth:`JamaClient.warm_token_cache` call at startup
+    fills the cache; subsequent tool calls refresh proactively at >=90
+    percent TTL. A non-fresh token in a busy deployment indicates a real
+    problem; in an idle one it simply means the TTL elapsed without a
+    tool call.
+
+    Returns:
+        JSONResponse with status_code 200 and body ``{"status": "ready"}``
+        when the cached token is fresh; 503 with body ``{"status":
+        "not_ready", "reason": "<client_not_initialized |
+        token_unavailable>"}`` otherwise.
+    """
+    client = _state.jama_client
+    if client is None:
+        return JSONResponse(
+            {"status": "not_ready", "reason": "client_not_initialized"},
+            status_code=503,
+        )
+    if not client.is_token_fresh():
+        return JSONResponse(
+            {"status": "not_ready", "reason": "token_unavailable"},
+            status_code=503,
+        )
+    return JSONResponse({"status": "ready"})
+
+
 def build_server(*, settings: Settings | None = None) -> FastMCP:
     """Build a :class:`FastMCP` instance bound to the given settings."""
     cfg = settings or Settings()
@@ -100,6 +136,7 @@ def build_server(*, settings: Settings | None = None) -> FastMCP:
     # the streamable-HTTP server begins accepting connections. Liveness
     # (/health) is static; readiness (/readyz) reads _state.jama_client.
     server.custom_route("/health", methods=["GET"])(_health)
+    server.custom_route("/readyz", methods=["GET"])(_readyz)
 
     # Register tools.
     from jama_mcp_server import tools  # noqa: PLC0415
