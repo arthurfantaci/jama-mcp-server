@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from jama_client import JamaNetworkError
 from jama_mcp_server import server as server_module
 from jama_mcp_server.config import Settings
 from jama_mcp_server.server import build_server, jama_lifespan
 
-if TYPE_CHECKING:
-    import pytest
+
+@pytest.fixture(autouse=True)
+def _reset_state():
+    """Reset module-level _state.jama_client around each test to prevent leakage."""
+    server_module._state.jama_client = None
+    yield
+    server_module._state.jama_client = None
 
 
 class _FakeClient:
@@ -117,3 +124,36 @@ async def test_run_http_with_warm_populates_and_clears_state(
     assert seen["warm_calls_during_serve"] == 1
     # After serve: _state is cleared (try/finally cleanup).
     assert server_module._state.jama_client is None
+
+
+async def test_run_http_with_warm_retries_on_network_error(
+    mock_jama_client: AsyncMock,
+) -> None:
+    """warm_token_cache is retried on JamaNetworkError; _state populated after success."""
+    settings = Settings(
+        jama_base_url="https://jama.example",
+        jama_oauth_client_id="cid",
+        jama_oauth_client_secret="cs",
+    )
+
+    # First call raises (transient network error), second succeeds.
+    mock_jama_client.warm_token_cache.side_effect = [
+        JamaNetworkError("transient"),
+        None,
+    ]
+
+    fake_server = MagicMock()
+    fake_server.run_streamable_http_async = AsyncMock()
+
+    def factory(_settings: Settings) -> AsyncMock:
+        return mock_jama_client
+
+    # Patch anyio.sleep so the test does not pay real backoff time.
+    with patch.object(server_module.anyio, "sleep", new=AsyncMock()) as mock_sleep:
+        await server_module._run_http_with_warm(
+            fake_server, settings, client_factory=factory, warm_retries=3
+        )
+
+    assert mock_jama_client.warm_token_cache.await_count == 2
+    assert mock_sleep.await_count == 1  # one backoff between attempts 1 and 2
+    fake_server.run_streamable_http_async.assert_awaited_once()

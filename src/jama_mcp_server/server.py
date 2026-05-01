@@ -10,7 +10,7 @@ import anyio
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
 
-from jama_client import JamaClient, OAuthCredentials
+from jama_client import JamaClient, JamaNetworkError, OAuthCredentials
 from jama_mcp_server.config import Settings
 from jama_mcp_server.logging_config import configure_logging
 
@@ -154,6 +154,8 @@ async def _run_http_with_warm(
     server: FastMCP,
     settings: Settings,
     client_factory: Callable[[Settings], JamaClient] | None = None,
+    *,
+    warm_retries: int = 3,
 ) -> None:
     """Eagerly warm the OAuth cache and populate ``_state`` before Uvicorn serves.
 
@@ -165,6 +167,15 @@ async def _run_http_with_warm(
     connects - we materialize a long-lived JamaClient here, run
     ``warm_token_cache``, then enter ``run_streamable_http_async``.
 
+    The warm is retried on :class:`JamaNetworkError` to absorb startup-time
+    transient errors. The motivating case is the Kubernetes CNI policy
+    programming race: when a Pod starts, Calico (or any policy-enforcing
+    CNI) takes a moment to materialize the NetworkPolicy rules; egress
+    issued during that window fails with ConnectTimeout. A small
+    exponential backoff bridges the gap. Other JamaClient exceptions
+    (auth, server) are not retried - they are fatal and propagate
+    immediately so the Pod crashes with a clear K8s rollout signal.
+
     Credential errors (HTTP 401 from the OAuth endpoint) raise out of
     ``warm_token_cache`` and crash the Pod at startup, exactly the right
     failure mode for K8s rollout signaling.
@@ -172,7 +183,14 @@ async def _run_http_with_warm(
     factory = client_factory or _default_client_factory
     client = factory(settings)
     async with client:
-        await client.warm_token_cache()
+        for attempt in range(warm_retries):
+            try:
+                await client.warm_token_cache()
+                break
+            except JamaNetworkError:
+                if attempt + 1 == warm_retries:
+                    raise
+                await anyio.sleep(2**attempt)
         _state.jama_client = client
         try:
             await server.run_streamable_http_async()
