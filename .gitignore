@@ -19,6 +19,9 @@
 *.key
 credentials.json
 
+# K8s real Secret (defense-in-depth; k8s/.gitignore also covers this)
+k8s/secret.yaml
+
 # Python build/cache artifacts
 __pycache__/
 *.py[cod]
