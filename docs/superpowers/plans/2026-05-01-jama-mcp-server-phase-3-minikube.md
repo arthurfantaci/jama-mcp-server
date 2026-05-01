@@ -269,11 +269,15 @@ EOF
 
 ## Task 2: Modify `jama_lifespan` to eagerly warm + add `_state` container (TDD)
 
+> **PLAN-INLINE CORRECTION 2026-05-01 (during Task 11 live deploy):** The original Task 2 design assumed FastMCP's `lifespan=` parameter runs at HTTP server startup. It does not. In streamable-HTTP mode FastMCP's `streamable_http_app()` constructs a Starlette ASGI app whose lifespan is fixed to `session_manager.run()` (see `mcp/server/fastmcp/server.py:1044`); the user-supplied `lifespan=` only runs per-MCP-session via the low-level `Server` class. As a result, `_state.jama_client` stayed `None` until an MCP client connected — but K8s readiness probes ran continuously from Pod start, leaving `/readyz` permanently at 503 (`client_not_initialized`).
+>
+> **Corrected design:** ownership of `_state` moves from the per-session `jama_lifespan` to a new module-level async helper `_run_http_with_warm`, invoked by `main_http` via `anyio.run`. The helper materializes a long-lived JamaClient, calls `warm_token_cache`, populates `_state.jama_client`, then awaits `server.run_streamable_http_async()`. On shutdown, `_state` is cleared via `try/finally`. `jama_lifespan` is now strictly per-MCP-session: it yields a per-session client to `lifespan_context['jama_client']` and does NOT touch `_state`. This restores Phase 2's per-session tool behavior while making the readiness probe meaningful from Pod start. **HEAD's `src/jama_mcp_server/server.py` is the canonical implementation;** the steps below describe the design AS CORRECTED, not the original.
+
 **Files:**
 - Modify: `src/jama_mcp_server/server.py`
 - Modify: `tests/unit/jama_mcp_server/test_server_lifespan.py`
 
-**Rationale:** The `_readyz` handler (added in Task 3) needs to read JamaClient state from a Starlette route, but FastMCP's `lifespan_context` dict is only accessible to MCP tools via `ctx.request_context.lifespan_context` — not from Starlette routes. A small module-level mutable container, populated by the lifespan and read by the route handler, bridges the gap. It's a controlled global: written exactly once at startup, cleared exactly once at shutdown, read-only otherwise. Eager `warm_token_cache()` ensures readiness is meaningful at startup AND surfaces credential errors at startup rather than 30 seconds after first user request.
+**Rationale:** The `_readyz` handler (added in Task 3) needs to read JamaClient state from a Starlette route, but FastMCP's `lifespan_context` dict is only accessible to MCP tools via `ctx.request_context.lifespan_context` — not from Starlette routes, AND FastMCP's user `lifespan=` parameter only runs per-MCP-session, not at HTTP startup. A small module-level mutable container `_state`, populated by `_run_http_with_warm` (the HTTP entry-point helper) and read by the `_readyz` route handler, bridges the gap. The HTTP-server-process owns `_state`: written exactly once at HTTP startup (before Uvicorn serves), cleared exactly once at shutdown. Eager `warm_token_cache()` ensures readiness is meaningful from Pod start AND surfaces credential errors at startup rather than on first user request.
 
 - [ ] **Step 2.1: Write the failing test**
 
