@@ -1,0 +1,110 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jama-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jama-mcp-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jama-mcp-server
+    spec:
+      # Pod-level securityContext applies to all containers in the Pod.
+      # UID/GID 1001 matches the `jama` user pinned in the Phase 2 Dockerfile.
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        runAsNonRoot: true
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: jama-mcp-server
+          image: jama-mcp-server:dev
+          # IfNotPresent uses Minikube's local Docker daemon image (built via
+          # eval $(minikube docker-env) && docker build). Never pull.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: streamable-http
+              containerPort: 8765
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: jama-mcp-config
+            - secretRef:
+                name: jama-mcp-oauth
+          # Map the Secret's keys (JAMA_CLIENT_ID, JAMA_CLIENT_SECRET) to the
+          # variable names Pydantic Settings expects. The Secret already uses
+          # those names directly so envFrom is sufficient; keeping a single
+          # naming convention prevents drift between the Settings field names
+          # and the Secret keys.
+          env:
+            - name: JAMA_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: jama-mcp-oauth
+                  key: JAMA_CLIENT_ID
+            - name: JAMA_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jama-mcp-oauth
+                  key: JAMA_CLIENT_SECRET
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          # Container-level securityContext locks down capabilities and the FS.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          # Liveness: cheap static /health. Failures restart the container.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: streamable-http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Readiness: deeper /readyz that verifies cached OAuth token freshness.
+          # Failures remove the Pod from the Service endpoints but do NOT restart.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: streamable-http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+            successThreshold: 1
+          # Startup probe: gives the lifespan up to 30 seconds to complete the
+          # eager OAuth token fetch (matches the Phase 2 HEALTHCHECK start_period
+          # rationale). Once startup succeeds, liveness and readiness take over.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: streamable-http
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 15
+          volumeMounts:
+            # readOnlyRootFilesystem: true requires writable mounts for any
+            # path the application writes to. Python's tempfile module and
+            # similar utilities default to /tmp.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
