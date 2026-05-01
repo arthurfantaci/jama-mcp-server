@@ -1,0 +1,27 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# All resources in this kustomization land in the jama-mcp namespace.
+# A dedicated namespace makes the NetworkPolicy's same-namespace ingress
+# rule meaningful (default would mix with whatever else is in the cluster)
+# and reduces teardown to `kubectl delete ns jama-mcp`.
+namespace: jama-mcp
+
+# Apply consistent labels across all resources for selectors and discoverability.
+commonLabels:
+  app.kubernetes.io/name: jama-mcp-server
+  app.kubernetes.io/part-of: jama-mcp
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  # Namespace must be created before any namespaced resource lands in it.
+  - namespace.yaml
+  - configmap.yaml
+  # secret.yaml is gitignored; the operator copies it from secret.example.yaml
+  # before `kubectl apply -k k8s/`. A missing file fails fast with a clear
+  # kustomize error - exactly the failure mode we want.
+  - secret.yaml
+  - networkpolicy.yaml
+  - service.yaml
+  - deployment.yaml
