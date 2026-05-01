@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jama-mcp-config
+data:
+  # Jamacloud base URL. The OAuth token URL is derived in jama_client/auth.py
+  # as f"{base_url}/rest/oauth/token" - not a separate Settings field, so not
+  # surfaced here.
+  JAMA_BASE_URL: "https://pm2.jamacloud.com"
+
+  # Server transport configuration. Phase 2's Pydantic Settings default
+  # for MCP_HTTP_HOST is 127.0.0.1 (loopback, safe for native runs); the
+  # K8s Pod must bind to 0.0.0.0 so the Service's selector reaches it.
+  MCP_TRANSPORT: "streamable-http"
+  MCP_HTTP_HOST: "0.0.0.0"
+  MCP_HTTP_PORT: "8765"
