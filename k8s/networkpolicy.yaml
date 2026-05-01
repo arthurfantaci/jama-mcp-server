@@ -1,0 +1,52 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jama-mcp-server
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: jama-mcp-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow any Pod in the same namespace to reach the server on 8765.
+    # kubectl port-forward bypasses NetworkPolicy entirely (the kube-apiserver
+    # talks directly to kubelet), so the README's port-forward verification
+    # works regardless of this rule.
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8765
+  egress:
+    # Allow kube-dns lookups (UDP+TCP/53 to the kube-system namespace).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS (443/TCP) egress to anywhere so the Pod can reach Jamacloud.
+    # We do not pin Jamacloud IPs because the public Jama Cloud CDN's IP ranges
+    # are not published as stable CIDRs and can change without notice.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              # Standard private/link-local exclusions; defense in depth against
+              # accidental egress to in-cluster services not covered by other rules.
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
