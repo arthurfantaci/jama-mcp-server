@@ -64,6 +64,43 @@ class JamaClient:
         """Return ``True`` when the underlying HTTP client is open."""
         return self._http is not None
 
+    def is_token_fresh(self) -> bool:
+        """Return ``True`` if the cached OAuth token exists and has not aged out.
+
+        The check is synchronous and in-memory. It uses the existing
+        :meth:`TokenCache.get` staleness logic, which considers a token stale at
+        or beyond 90 percent of its TTL (matching the proactive refresh
+        threshold). Returns ``False`` when the underlying HTTP transport is not
+        open (the client has not been entered as an async context manager).
+
+        Used by the streamable-HTTP ``/readyz`` route handler to drive
+        Kubernetes readiness probes without making a network call.
+
+        Returns:
+            ``True`` if the client is open and the cache holds a non-stale
+            token, otherwise ``False``.
+        """
+        if self._http is None:
+            return False
+        return self._tokens.get(now=datetime.now(tz=UTC)) is not None
+
+    async def warm_token_cache(self) -> None:
+        """Eagerly fetch an OAuth token to populate the cache.
+
+        Used at lifespan startup to make the readiness probe meaningful the
+        moment startup completes, and to surface credential errors (HTTP 401
+        from the OAuth endpoint) at startup rather than on the first
+        user-driven tool call.
+
+        Raises:
+            JamaAuthError: When the OAuth endpoint rejects the credentials.
+            JamaForbiddenError: When the OAuth endpoint returns 403.
+            JamaServerError: When the OAuth endpoint returns 5xx after retry.
+            JamaNetworkError: When transport-level errors persist after retry.
+            RuntimeError: When invoked outside the async context manager.
+        """
+        await self._ensure_token()
+
     async def __aenter__(self) -> JamaClient:
         """Open the underlying ``httpx.AsyncClient``."""
         self._http = httpx.AsyncClient(timeout=self._timeout)

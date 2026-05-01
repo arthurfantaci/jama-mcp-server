@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
 import respx
 
 from jama_client.auth import OAuthCredentials, Token, TokenCache, fetch_token
+from jama_client.client import JamaClient
 from jama_client.exceptions import (
     JamaAuthError,
     JamaForbiddenError,
@@ -145,3 +147,42 @@ async def test_fetch_token_raises_auth_error_on_unexpected_status(jama_credentia
     async with httpx.AsyncClient() as client:
         with pytest.raises(JamaAuthError):
             await fetch_token(jama_credentials, client)
+
+
+@pytest.mark.asyncio
+async def test_is_token_fresh_false_before_open(jama_credentials: OAuthCredentials) -> None:
+    """`is_token_fresh()` returns False before the client is entered as an async context manager."""
+    client = JamaClient(jama_credentials)
+    # No __aenter__ called; transport is closed; cache is empty.
+    assert client.is_token_fresh() is False
+
+
+@pytest.mark.asyncio
+async def test_is_token_fresh_true_after_warm(
+    jama_credentials: OAuthCredentials,
+    jama_token_url: str,
+    jama_token_stub: dict[str, Any],
+) -> None:
+    """`is_token_fresh()` returns True immediately after `warm_token_cache()` fills the cache."""
+    with respx.mock(assert_all_called=False) as respx_mock:
+        respx_mock.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+        async with JamaClient(jama_credentials) as client:
+            assert client.is_token_fresh() is False  # cache is empty before warm
+            await client.warm_token_cache()
+            assert client.is_token_fresh() is True
+
+
+@pytest.mark.asyncio
+async def test_warm_token_cache_populates_cache(
+    jama_credentials: OAuthCredentials,
+    jama_token_url: str,
+    jama_token_stub: dict[str, Any],
+) -> None:
+    """`warm_token_cache()` issues exactly one OAuth token fetch."""
+    with respx.mock(assert_all_called=False) as respx_mock:
+        route = respx_mock.post(jama_token_url).mock(
+            return_value=httpx.Response(200, json=jama_token_stub)
+        )
+        async with JamaClient(jama_credentials) as client:
+            await client.warm_token_cache()
+        assert route.call_count == 1
