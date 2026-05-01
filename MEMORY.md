@@ -2,13 +2,13 @@
 
 ## Current phase
 
-**Phase 3 — Kubernetes deployment (Minikube) (planned, not yet started)**
+**Maintenance mode.** Phases 0–2 complete; no active development.
 
 **Active branch:** `main`
 **Open PR:** none
 **Most recent merge:** [PR #7](https://github.com/arthurfantaci/jama-mcp-server/pull/7) — Phase 2 Docker containerization (squash-merged 2026-04-30, merge commit `b4b8f7e`)
 
-**Next action:** open Phase 3 tracking issue and create `feat/phase-3-minikube` branch when ready to begin K8s work. The `/health` endpoint and fixed UID/GID 1001 already in place specifically to support Phase 3's liveness/readiness probes and `securityContext.runAsUser`.
+**Verifiable end state:** the streamable-HTTP MCP server runs via `docker compose -f docker/docker-compose.yml up -d`, or stdio via `uv run jama-mcp-stdio`. The MCP Inspector successfully invokes `whoami` against `pm2.jamacloud.com` through either transport.
 
 ## Phase status
 
@@ -17,7 +17,6 @@
 | 0 | Repository scaffolding, CI/CD, memory hygiene apparatus | Complete |
 | 1 | Functional MVP — six client operations + six MCP tools, both transports | Complete (PR #5 merged 2026-04-29) |
 | 2 | Docker containerization | Complete (PR #7 merged 2026-04-30) |
-| 3 | Kubernetes deployment (Minikube) | Planned |
 
 ## Surface delivered
 
@@ -82,8 +81,8 @@ Older Phase 0/1 decisions (architectural approach, Python 3.12, FastMCP both tra
 | 2026-04-30 | Refreshed KG protocol tool names in `~/.claude/CLAUDE.md` (`search_nodes` → `search_memories`); repaired two typeless KG entities | mcp-neo4j-memory API rename had drifted the global protocol prose; typeless entities were blocking `search_memories` with a Pydantic validation error |
 | 2026-04-30 | Phase 2 split across three Claude Code sessions (hygiene → plan-writing → execution) | Controller-context discipline (cf. 2026-04-29 Phase 1 Tasks 9/10 split). Each session ended with a copy-paste-ready prompt for the next per the global Session Handoff Protocol |
 | 2026-04-30 | Phase 2 base image: `python:3.12-slim-bookworm` runtime + `ghcr.io/astral-sh/uv:python3.12-bookworm-slim` builder, multi-stage with venv copy across stages | Local-dev/demo target favors slim's debug ergonomics over distroless's minimum attack surface; uv builder image gives lockfile-pinned dependencies end-to-end and matches local-dev tooling exactly |
-| 2026-04-30 | Phase 2 healthcheck: add `/health` route via `FastMCP.custom_route` + Python stdlib urllib probe | Stable probe semantics (vs probing /mcp with awkward 4xx-as-alive); no curl install needed; future-proofs Phase 3 K8s liveness/readiness probes which will reuse the same endpoint |
-| 2026-04-30 | Phase 2 CI: build-only on PR + main with path filters + GHA buildx cache | Catches Dockerfile drift cheaply (~30s warm rebuild, ~1m cold); image push deferred to Phase 3 when a deployment consumer (Minikube) justifies registry permissions and a tag strategy |
+| 2026-04-30 | Phase 2 healthcheck: add `/health` route via `FastMCP.custom_route` + Python stdlib urllib probe | Stable probe semantics (vs probing /mcp with awkward 4xx-as-alive); no curl install needed |
+| 2026-04-30 | Phase 2 CI: build-only on PR + main with path filters + GHA buildx cache | Catches Dockerfile drift cheaply (~30s warm rebuild, ~1m cold); image push deferred — local-dev/demo target does not require registry distribution |
 | 2026-04-30 | Phase 2 spec doc: no new spec written; decisions live in plan + this MEMORY.md | Existing design spec Section 10 sanctions deliverables; plan-author decisions belong in the implementation plan as task-level rationale, with an index-row summary here. Matches Phase 1's pattern (no separate decisions doc) |
 | 2026-04-30 | Phase 2 PR #7 squash-merged to main; all 6 CI checks green (Lint, Dependency Review, Test, Mypy strict, codecov/patch, Docker build); Issue #6 auto-closed; merge commit `b4b8f7e` | Phase 2 closed. Docker build CI ran cold in 1m0s on the GHA runner. MCP Inspector smoke confirmed live `whoami` invocation against `pm2.jamacloud.com` from the containerized server before PR open |
 

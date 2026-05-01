@@ -38,8 +38,7 @@ body:
       options:
         - Phase 1 (functional MVP)
         - Phase 2 (containerization)
-        - Phase 3 (Kubernetes deployment)
-        - Post-Phase 3 / unscoped
+        - Post-Phase 2 / unscoped
     validations:
       required: true
 

@@ -5,7 +5,7 @@
 **Status:** Draft pending author approval (Phase 0 deliverable)
 **Author:** Arthur Fantaci
 
-This document specifies the architecture, conventions, tooling, and phased delivery plan for the Jama MCP Server, a Model Context Protocol server providing programmatic access to a hosted Jamacloud SaaS instance via its REST API. The specification governs Phase 0 (initialization) directly and frames Phases 1–3 (functional MVP, containerization, Kubernetes deployment) at a level sufficient for subsequent implementation planning.
+This document specifies the architecture, conventions, tooling, and phased delivery plan for the Jama MCP Server, a Model Context Protocol server providing programmatic access to a hosted Jamacloud SaaS instance via its REST API. The specification governs Phase 0 (initialization) directly and frames Phases 1–2 (functional MVP, containerization) at a level sufficient for subsequent implementation planning.
 
 ## 1. Project Overview
 
@@ -294,7 +294,7 @@ The project maintains two tiers of Claude memory and an explicit hygiene routine
 
 **Verifiable end state:** a clean clone of the public repository can run `uv sync`, `uv run ruff check`, `uv run mypy src/`, and `uv run pytest` successfully against the skeleton-only codebase. The repository renders professionally on GitHub.
 
-**Explicit non-deliverables:** any working `jama_client` operation, any working MCP tool, the Dockerfile (Phase 2), the Kubernetes manifests (Phase 3).
+**Explicit non-deliverables:** any working `jama_client` operation, any working MCP tool, the Dockerfile (Phase 2).
 
 ### Phase 1 — Functional MVP, both transports
 
@@ -322,23 +322,9 @@ The project maintains two tiers of Claude memory and an explicit hygiene routine
 
 **Verifiable end state:** `docker compose up` starts the server. The MCP Inspector connects to the containerized server and successfully invokes a tool.
 
-### Phase 3 — Kubernetes (Minikube)
-
-**Scope:** deploy the containerized server to a local Minikube cluster.
-
-**Deliverables:**
-
-- `k8s/{deployment.yaml, service.yaml, configmap.yaml, secret.example.yaml, networkpolicy.yaml, kustomization.yaml}`.
-- Liveness and readiness probes against the streamable-HTTP endpoint.
-- Secret resource for Jama OAuth credentials, never committed.
-- NetworkPolicy restricting access to in-cluster traffic.
-- README updates with Minikube quickstart.
-
-**Verifiable end state:** `minikube start && kubectl apply -k k8s/ && kubectl port-forward svc/jama-mcp-server 8765:8765` produces a working server reachable from the MCP Inspector.
-
 ## 11. Repository Hygiene Rules
 
-- **Secrets never enter the repository.** `.env` files (other than `.env.example`) are gitignored. `gitleaks` scans every commit. Jama OAuth credentials are provisioned per-user and stored in `.env` (local development) or `Secret` resources (Kubernetes).
+- **Secrets never enter the repository.** `.env` files (other than `.env.example`) are gitignored. `gitleaks` scans every commit. Jama OAuth credentials are provisioned per-user and stored in `.env` (local development) or container-orchestrator secret stores (production deployments).
 - **Working notes do not enter the public repository.** `docs/internal/` and `docs/plans/` are gitignored by convention. Working notes, raw plans, and exploratory writing live in `docs/internal/`.
 - **The `validate-docs-placement.sh` hook warns when staged docs contain internal markers.** Authors review and either remove the marker or move the document to `docs/internal/`.
 - **Conventional commits.** Commit messages follow the conventional-commits specification with imperative-mood subjects: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `ci:`.

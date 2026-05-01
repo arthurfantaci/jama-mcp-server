@@ -98,4 +98,4 @@ The Inspector launches the server as a subprocess, lists the six registered tool
 
 ## Phase status
 
-Setup guide reflects Phase 1 (functional MVP, complete). Phase 2 (Docker containerization) and Phase 3 (Kubernetes / Minikube) will extend this document. See [`docs/superpowers/specs/`](superpowers/specs/) for the full design.
+Setup guide reflects Phases 0–2 (functional MVP and Docker containerization, both complete). See [`docs/superpowers/specs/`](superpowers/specs/) for the full design and the project [`README.md`](../README.md) for the Docker quickstart.

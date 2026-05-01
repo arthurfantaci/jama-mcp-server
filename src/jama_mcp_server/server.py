@@ -45,9 +45,9 @@ async def _health(_request: Request) -> JSONResponse:
     """Return a static liveness payload for HTTP healthcheck probes.
 
     The handler is intentionally cheap and stateless: it does not touch
-    the JamaClient or any external service. A deeper readiness probe
-    (e.g., verifying the OAuth token is fresh) is a Phase 3 concern when
-    K8s separates liveness from readiness.
+    the JamaClient or any external service. The Phase 2 Docker
+    HEALTHCHECK directive targets this endpoint via Python-stdlib
+    urllib so the runtime image needs no extra packages.
     """
     return JSONResponse({"status": "ok"})
 
