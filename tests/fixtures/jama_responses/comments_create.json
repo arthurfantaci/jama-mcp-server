@@ -2,21 +2,7 @@
   "meta": {
     "status": "Created",
     "timestamp": "2026-05-02T12:00:00.000+0000",
-    "id": 5001,
-    "location": "/rest/latest/comments/5001"
-  },
-  "links": {},
-  "data": {
-    "id": 5001,
-    "inReplyTo": 0,
-    "body": {"text": "Hello world"},
-    "commentType": "GENERAL",
-    "location": {"item": 42, "project": 1},
-    "createdDate": "2026-05-02T12:00:00.000+0000",
-    "modifiedDate": "2026-05-02T12:00:00.000+0000",
-    "lastActivityDate": "2026-05-02T12:00:00.000+0000",
-    "createdBy": 226,
-    "modifiedBy": 226,
-    "type": "comments"
+    "location": "https://jama.example/rest/latest/comments/5001",
+    "id": 5001
   }
 }

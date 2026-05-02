@@ -200,15 +200,26 @@ class JamaClient:
         project_id: int,
         body: str,
         *,
-        in_reply_to: int = 0,
+        in_reply_to: int | None = None,
         comment_type: str = "GENERAL",
     ) -> Comment:
-        """Create a top-level comment on a Jamacloud item.
+        """Create a comment on a Jamacloud item.
 
         Posts to ``POST /rest/latest/comments`` with the Jama-canonical request
         shape: ``body`` nested under ``{"text": ...}``, ``location`` nested
-        under ``{"item": ..., "project": ...}``, and the comment-type / reply
-        defaults that produce a top-level GENERAL comment.
+        under ``{"item": ..., "project": ...}``, and ``commentType`` defaulting
+        to ``"GENERAL"``. For top-level comments, ``inReplyTo`` is **omitted
+        entirely** (passing ``in_reply_to=0`` triggers a server-side
+        ``NullPointerException`` in Jamacloud's parent-comment lookup; verified
+        against ``pm2.jamacloud.com`` 2026-05-02).
+
+        Jamacloud's POST response is a ``meta``-only envelope with the new
+        comment's ``id`` and ``location`` URL — there is no ``data`` field
+        carrying the full comment representation. The returned :class:`Comment`
+        is therefore synthesised from the new ID plus the inputs the caller
+        already provided; timestamp and author fields are left ``None``. Callers
+        that need a fully-populated comment can issue a follow-up GET against
+        ``/rest/latest/comments/{id}``.
 
         Args:
             item_id: The Jama internal ID of the item being commented on.
@@ -216,12 +227,14 @@ class JamaClient:
                 Required by Jama's request schema; obtain from a prior
                 ``get_item`` call's ``project`` field or from ``list_projects``.
             body: Plain-text comment body.
-            in_reply_to: Parent comment ID for threaded replies; ``0`` (default)
-                creates a top-level comment.
-            comment_type: Jama comment-type enumeration; defaults to ``GENERAL``.
+            in_reply_to: Parent comment ID for threaded replies; ``None``
+                (default) creates a top-level comment by omitting the field.
+            comment_type: Jama comment-type enumeration; defaults to ``"GENERAL"``.
 
         Returns:
-            The created :class:`Comment` populated from the API response.
+            A :class:`Comment` synthesised from the assigned ID plus the request
+            inputs. Timestamp and author fields are ``None`` — see method
+            docstring for rationale.
 
         Raises:
             JamaAuthError: HTTP 401 — the OAuth token was rejected.
@@ -229,20 +242,36 @@ class JamaClient:
                 permission on the item or project.
             JamaNotFoundError: HTTP 404 — the target item does not exist.
             JamaValidationError: HTTP 400 (request payload rejected by Jama),
-                any other unexpected status, or response-body validation failure.
+                any other unexpected status, or absence of the new comment ID
+                from the response envelope.
         """
-        payload = {
-            "inReplyTo": in_reply_to,
+        payload: dict[str, Any] = {
             "body": {"text": body},
             "commentType": comment_type,
             "location": {"item": item_id, "project": project_id},
         }
-        data = await self._request(
+        if in_reply_to is not None:
+            payload["inReplyTo"] = in_reply_to
+
+        envelope = await self._request(
             "POST",
             "/rest/latest/comments",
             json_body=payload,
+            return_envelope=True,
         )
-        return self._validate(Comment, data)
+        meta = envelope.get("meta") if isinstance(envelope, dict) else None
+        new_id = meta.get("id") if isinstance(meta, dict) else None
+        if not isinstance(new_id, int):
+            msg = "Jamacloud POST /comments response did not include a new comment ID."
+            raise JamaValidationError(msg, payload=envelope)
+
+        return Comment(
+            id=new_id,
+            in_reply_to=in_reply_to,
+            body={"text": body},
+            comment_type=comment_type,
+            location={"item": item_id, "project": project_id},
+        )
 
     @staticmethod
     def _validate(model_cls: type[_M], payload: Any) -> _M:
@@ -362,17 +391,27 @@ class JamaClient:
             The unwrapped ``data`` value or the full envelope dict.
 
         Raises:
-            JamaValidationError: When the body is not valid JSON or lacks a ``data`` key.
+            JamaValidationError: When the body is not a JSON object, or when the
+                caller asked for unwrapped ``data`` and the envelope does not
+                include a ``data`` key. Some write endpoints (notably
+                ``POST /rest/latest/comments``) return a ``meta``-only envelope
+                with the new resource's ``id`` and ``location`` but no ``data``;
+                callers of those endpoints must pass ``return_envelope=True``.
         """
         try:
             payload = response.json()
         except ValueError as exc:
             msg = "Jamacloud response was not valid JSON."
             raise JamaValidationError(msg, payload=response.text) from exc
-        if not isinstance(payload, dict) or "data" not in payload:
+        if not isinstance(payload, dict):
+            msg = "Jamacloud response was not a JSON object."
+            raise JamaValidationError(msg, payload=payload)
+        if return_envelope:
+            return payload
+        if "data" not in payload:
             msg = "Jamacloud response missing expected meta/links/data envelope."
             raise JamaValidationError(msg, payload=payload)
-        return payload if return_envelope else payload["data"]
+        return payload["data"]
 
     @staticmethod
     def _parse_retry_after(response: httpx.Response) -> int:

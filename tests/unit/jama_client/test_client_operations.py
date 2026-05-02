@@ -162,16 +162,42 @@ async def test_create_comment_posts_canonical_payload_and_returns_comment(
             project_id=1,
             body="Hello world",
         )
+    # Comment is synthesised from the new ID plus inputs (Jama POST returns
+    # meta-only envelope with no full comment body).
     assert isinstance(comment, Comment)
     assert comment.id == 5001
-    assert comment.in_reply_to == 0
+    assert comment.in_reply_to is None
     assert comment.body == {"text": "Hello world"}
     assert comment.comment_type == "GENERAL"
     assert comment.location == {"item": 42, "project": 1}
+    # Top-level comments must omit inReplyTo entirely (sending 0 NPEs Jamacloud).
     sent = json.loads(route.calls.last.request.content)
     assert sent == {
-        "inReplyTo": 0,
         "body": {"text": "Hello world"},
         "commentType": "GENERAL",
         "location": {"item": 42, "project": 1},
     }
+    assert "inReplyTo" not in sent
+
+
+@respx.mock
+async def test_create_comment_with_in_reply_to_includes_field(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    route = respx.post(f"{jama_base_url}/rest/latest/comments").mock(
+        return_value=httpx.Response(201, json=_fixture("comments_create.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        comment = await client.create_comment(
+            item_id=42,
+            project_id=1,
+            body="Replying",
+            in_reply_to=300,
+        )
+    assert comment.in_reply_to == 300
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["inReplyTo"] == 300

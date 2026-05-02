@@ -161,7 +161,7 @@ async def test_create_comment_returns_ai_shaped_comment(
     server, client = server_with_mock_client
     client.create_comment.return_value = Comment(
         id=5001,
-        in_reply_to=0,
+        in_reply_to=None,
         body={"text": "Hello world"},
         comment_type="GENERAL",
         location={"item": 42, "project": 1},
@@ -174,7 +174,7 @@ async def test_create_comment_returns_ai_shaped_comment(
         )
     data: dict[str, Any] = result[1]
     assert data["id"] == 5001
-    assert data["in_reply_to"] == 0
+    assert data["in_reply_to"] is None
     assert data["body"] == {"text": "Hello world"}
     assert data["comment_type"] == "GENERAL"
     assert data["location"] == {"item": 42, "project": 1}
