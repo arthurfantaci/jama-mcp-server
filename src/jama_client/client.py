@@ -30,7 +30,7 @@ from jama_client.exceptions import (
     JamaServerError,
     JamaValidationError,
 )
-from jama_client.models import Item, Project, Relationship, TestRun, User
+from jama_client.models import Comment, Item, Project, Relationship, TestRun, User
 
 _M = TypeVar("_M", bound=BaseModel)
 
@@ -194,6 +194,56 @@ class JamaClient:
         )
         return [self._validate(TestRun, run) for run in data]
 
+    async def create_comment(
+        self,
+        item_id: int,
+        project_id: int,
+        body: str,
+        *,
+        in_reply_to: int = 0,
+        comment_type: str = "GENERAL",
+    ) -> Comment:
+        """Create a top-level comment on a Jamacloud item.
+
+        Posts to ``POST /rest/latest/comments`` with the Jama-canonical request
+        shape: ``body`` nested under ``{"text": ...}``, ``location`` nested
+        under ``{"item": ..., "project": ...}``, and the comment-type / reply
+        defaults that produce a top-level GENERAL comment.
+
+        Args:
+            item_id: The Jama internal ID of the item being commented on.
+            project_id: The Jama internal ID of the item's parent project.
+                Required by Jama's request schema; obtain from a prior
+                ``get_item`` call's ``project`` field or from ``list_projects``.
+            body: Plain-text comment body.
+            in_reply_to: Parent comment ID for threaded replies; ``0`` (default)
+                creates a top-level comment.
+            comment_type: Jama comment-type enumeration; defaults to ``GENERAL``.
+
+        Returns:
+            The created :class:`Comment` populated from the API response.
+
+        Raises:
+            JamaAuthError: HTTP 401 — the OAuth token was rejected.
+            JamaForbiddenError: HTTP 403 — the credential lacks comment-create
+                permission on the item or project.
+            JamaNotFoundError: HTTP 404 — the target item does not exist.
+            JamaValidationError: HTTP 400 (request payload rejected by Jama),
+                any other unexpected status, or response-body validation failure.
+        """
+        payload = {
+            "inReplyTo": in_reply_to,
+            "body": {"text": body},
+            "commentType": comment_type,
+            "location": {"item": item_id, "project": project_id},
+        }
+        data = await self._request(
+            "POST",
+            "/rest/latest/comments",
+            json_body=payload,
+        )
+        return self._validate(Comment, data)
+
     @staticmethod
     def _validate(model_cls: type[_M], payload: Any) -> _M:
         """Validate an API payload as ``model_cls``, translating failures to JamaValidationError.
@@ -220,6 +270,7 @@ class JamaClient:
         path: str,
         *,
         params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
         return_envelope: bool = False,
     ) -> Any:
         """Issue an authenticated request against the Jamacloud API.
@@ -228,6 +279,8 @@ class JamaClient:
             method: HTTP verb.
             path: Path under the configured ``base_url`` (must start with ``/``).
             params: Optional query parameters.
+            json_body: Optional JSON request body (serialised by ``httpx``;
+                ``Content-Type: application/json`` is set automatically).
             return_envelope: When ``True`` returns the full ``{meta,links,data}`` envelope;
                 otherwise returns just the unwrapped ``data`` field.
 
@@ -258,7 +311,13 @@ class JamaClient:
             token = await self._ensure_token()
             headers = {"Authorization": f"Bearer {token.access_token}"}
             try:
-                response = await self._http.request(method, url, params=params, headers=headers)
+                response = await self._http.request(
+                    method,
+                    url,
+                    params=params,
+                    json=json_body,
+                    headers=headers,
+                )
             except httpx.HTTPError as exc:
                 if network_attempt < _NETWORK_RETRY_LIMIT:
                     network_attempt += 1
@@ -269,7 +328,7 @@ class JamaClient:
 
             status = response.status_code
 
-            if status == 200:
+            if status in (200, 201):
                 return self._parse_envelope(response, return_envelope=return_envelope)
 
             if status == 429:

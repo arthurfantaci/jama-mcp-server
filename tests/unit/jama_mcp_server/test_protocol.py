@@ -35,7 +35,7 @@ def _make_context(mock_client: AsyncMock, server: FastMCP) -> Context:
 
 @pytest.fixture
 def server(mock_jama_client: AsyncMock) -> FastMCP:
-    """FastMCP with all six tools registered and a stubbed lifespan."""
+    """FastMCP with all seven tools registered and a stubbed lifespan."""
 
     @asynccontextmanager
     async def _lifespan(_server: FastMCP) -> Any:
@@ -46,8 +46,8 @@ def server(mock_jama_client: AsyncMock) -> FastMCP:
     return s
 
 
-async def test_server_lists_six_tools(server: FastMCP) -> None:
-    """All six Phase 1 tools are registered and discoverable."""
+async def test_server_lists_all_registered_tools(server: FastMCP) -> None:
+    """All six Phase 1 read tools plus the Phase 4.5 create_comment tool are discoverable."""
     listed = await server.list_tools()
     names = {tool.name for tool in listed}
     assert names == {
@@ -57,6 +57,7 @@ async def test_server_lists_six_tools(server: FastMCP) -> None:
         "search_items",
         "get_downstream_relationships",
         "get_test_runs_for_item",
+        "create_comment",
     }
 
 

@@ -11,7 +11,7 @@ import respx
 
 from jama_client.client import JamaClient
 from jama_client.exceptions import JamaNotFoundError
-from jama_client.models import Item, Project, Relationship, TestRun, User
+from jama_client.models import Comment, Item, Project, Relationship, TestRun, User
 
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "jama_responses"
 
@@ -143,3 +143,35 @@ async def test_get_test_runs_for_item_returns_test_run_models(
     assert isinstance(runs[0], TestRun)
     assert runs[0].fields["testRunStatus"] == "PASSED"
     assert route.calls.last.request.url.params["testCase"] == "42"
+
+
+@respx.mock
+async def test_create_comment_posts_canonical_payload_and_returns_comment(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    route = respx.post(f"{jama_base_url}/rest/latest/comments").mock(
+        return_value=httpx.Response(201, json=_fixture("comments_create.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        comment = await client.create_comment(
+            item_id=42,
+            project_id=1,
+            body="Hello world",
+        )
+    assert isinstance(comment, Comment)
+    assert comment.id == 5001
+    assert comment.in_reply_to == 0
+    assert comment.body == {"text": "Hello world"}
+    assert comment.comment_type == "GENERAL"
+    assert comment.location == {"item": 42, "project": 1}
+    sent = json.loads(route.calls.last.request.content)
+    assert sent == {
+        "inReplyTo": 0,
+        "body": {"text": "Hello world"},
+        "commentType": "GENERAL",
+        "location": {"item": 42, "project": 1},
+    }

@@ -71,6 +71,16 @@ Patterns discovered or sanctioned during Phase 2 (Docker containerization). Appl
 - **Compose `environment:` block overrides `MCP_TRANSPORT`/`MCP_HTTP_HOST`/`MCP_HTTP_PORT`** for the container regardless of `.env`. This lets a user's `.env` set up for native stdio runs work with Docker without edits. `.env.example` documents the precedence so users don't troubleshoot this.
 - **Pydantic Settings defaults stay at `mcp_http_host="127.0.0.1"`** (loopback, safe for native runs). The container overrides via the Compose `environment:` block, never via Settings default — protects native runs from accidental LAN exposure.
 
+## Phase 4.5 conventions codified
+
+Patterns introduced by the `create_comment` write tool. Apply uniformly to any future write surface added to this PoC (none planned beyond `create_comment` per the 2026-05-02 strategic decision).
+
+- **`JamaClient._request` accepts an optional `json_body: dict | None` parameter** and treats both HTTP 200 and HTTP 201 as success. The shared retry/auth/envelope logic applies uniformly to read and write paths; do not fork a parallel transport for writes.
+- **POST `/rest/latest/comments` request body uses Jama's nested shape**: `body` is `{"text": "..."}` (NOT a flat string), `location` is `{"item": <id>, "project": <id>}` (project is required, NOT derivable server-side). Defaults: `commentType="GENERAL"`, `inReplyTo=0` for top-level comments. Surface `project_id` as a required tool parameter rather than auto-fetching it via `get_item` — agents reach `create_comment` having already done the requirement lookup, so the project ID is in their context.
+- **`Comment` Pydantic model exposes `body` and `location` as `dict[str, Any] | None`** (the API's nested shape), not as flattened scalars. `model_dump()` returns snake_case keys at every level (`{"id": ..., "body": {"text": ...}, "location": {"item": ..., "project": ...}}`). Downstream callers parse the nested dicts.
+- **Write tools follow the same `@server.tool()` shape as read tools** — no `JAMA_READONLY` env gate, no per-tool confirmation hooks. The HITL checkpoint is the *caller's* responsibility (typically an `AskUserQuestion` upstream in the orchestrating skill), NOT the MCP server's. This keeps the server stateless and matches Jama's own permission model (Jama enforces write authorization via the OAuth credential's role).
+- **Live integration test for writes is gated on a dedicated env var** (`JAMA_INTEGRATION_COMMENT_ITEM_ID` + `JAMA_INTEGRATION_COMMENT_PROJECT_ID`) and leaves a timestamped comment in the sandbox. Same pattern applies to any future write integration test: name-spaced env vars + skip-by-default + self-identifying test artifacts (timestamp in payload).
+
 ## Tooling rigor
 
 - **Ruff** (21 rule families): E, W, F, I, N, D, UP, ANN, S, B, C4, SIM, TCH, RUF, TRY, EM, PIE, PT, RET, ARG, PL. Google docstring convention. Per-file relaxations for tests.

@@ -20,6 +20,7 @@ from jama_client.exceptions import (
     JamaValidationError,
 )
 from jama_client.models import (
+    Comment,
     Item,
     ItemFields,
     Project,
@@ -30,6 +31,7 @@ from jama_client.models import (
 )
 
 __all__ = [
+    "Comment",
     "Item",
     "ItemFields",
     "JamaAuthError",
