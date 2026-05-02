@@ -201,3 +201,26 @@ async def test_create_comment_with_in_reply_to_includes_field(
     assert comment.in_reply_to == 300
     sent = json.loads(route.calls.last.request.content)
     assert sent["inReplyTo"] == 300
+
+
+@respx.mock
+async def test_create_comment_serialises_non_default_comment_type(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    route = respx.post(f"{jama_base_url}/rest/latest/comments").mock(
+        return_value=httpx.Response(201, json=_fixture("comments_create.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        comment = await client.create_comment(
+            item_id=42,
+            project_id=1,
+            body="Requirement is unclassified per IEC 62304 sec. 4.3.",
+            comment_type="ISSUE",
+        )
+    assert comment.comment_type == "ISSUE"
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["commentType"] == "ISSUE"

@@ -36,7 +36,7 @@ Six Phase 1 read tools demonstrate Jama Connect's signature requirements-to-test
 
 **Phase 4.5 (write):**
 
-7. `create_comment(item_id, project_id, body)` — posts a top-level GENERAL comment on the named item. Designed for agent workflows that have already obtained explicit human approval for the comment text via an upstream checkpoint.
+7. `create_comment(item_id, project_id, body, comment_type="GENERAL")` — posts a top-level comment on the named item. Accepts any of Jama's eight `commentType` enum values (`GENERAL`, `QUESTION`, `PROPOSED_CHANGE`, `ACCEPTED_COMMENT`, `REJECTED_COMMENT`, `ISSUE`, `DECISION`, `DECISION_REQUEST`); compliance-review workflows should use `ISSUE` for non-compliant findings. Designed for agent workflows that have already obtained explicit human approval for the comment text via an upstream checkpoint.
 
 ## Quick start
 

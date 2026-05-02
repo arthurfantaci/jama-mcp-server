@@ -96,13 +96,31 @@ def register(server: FastMCP) -> None:
         item_id: int,
         project_id: int,
         body: str,
+        comment_type: str = "GENERAL",
     ) -> dict[str, Any]:
-        """Create a top-level GENERAL comment on a Jama item.
+        """Create a top-level comment on a Jama item.
 
-        The comment is created with ``commentType=GENERAL`` and ``inReplyTo=0``
-        (top-level, no parent comment). Both ``item_id`` and ``project_id``
-        are required by Jama's request schema; obtain ``project_id`` from a
-        prior ``get_item`` call's ``project`` field or from ``list_projects``.
+        The comment is created with the specified ``comment_type`` (default
+        ``"GENERAL"``) and no parent — ``inReplyTo`` is omitted from the
+        request payload entirely (sending ``0`` triggers a server-side NPE
+        on Jamacloud). Both ``item_id`` and ``project_id`` are required by
+        Jama's request schema; obtain ``project_id`` from a prior
+        ``get_item`` call's ``project`` field or from ``list_projects``.
+
+        Valid ``comment_type`` enum values per the Jama Swagger schema:
+
+        - ``"GENERAL"`` — default; generic comment.
+        - ``"QUESTION"`` — clarifying question; useful for ambiguity findings.
+        - ``"PROPOSED_CHANGE"`` — suggested wording change.
+        - ``"ACCEPTED_COMMENT"`` — closure of a prior thread.
+        - ``"REJECTED_COMMENT"`` — closure of a prior thread.
+        - ``"ISSUE"`` — flagged problem; semantically appropriate for
+          compliance-review findings.
+        - ``"DECISION"`` — recorded decision.
+        - ``"DECISION_REQUEST"`` — request for a decision.
+
+        Jama validates the value server-side and rejects unrecognised
+        strings with HTTP 400.
 
         This is the only write tool exposed by this MCP server; expected
         callers are agentic workflows that have already obtained explicit
@@ -112,5 +130,6 @@ def register(server: FastMCP) -> None:
             item_id=item_id,
             project_id=project_id,
             body=body,
+            comment_type=comment_type,
         )
         return comment.model_dump()
