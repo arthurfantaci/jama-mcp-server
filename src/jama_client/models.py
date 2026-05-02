@@ -103,3 +103,25 @@ class TestRun(_JamaModel):
     fields: dict[str, Any] = {}
     created_date: str | None = None
     modified_date: str | None = None
+
+
+class Comment(_JamaModel):
+    """A comment on a Jamacloud item.
+
+    Comments wrap their text in a nested ``body`` object (``{"text": "..."}``)
+    and identify their target via a nested ``location`` object
+    (``{"item": <id>, "project": <id>}``). The ``comment_type`` enumeration
+    typically defaults to ``"GENERAL"``; ``in_reply_to`` is ``0`` for
+    top-level comments.
+    """
+
+    id: int
+    in_reply_to: int | None = None
+    body: dict[str, Any] | None = None
+    comment_type: str | None = None
+    location: dict[str, Any] | None = None
+    created_date: str | None = None
+    modified_date: str | None = None
+    last_activity_date: str | None = None
+    created_by: int | None = None
+    modified_by: int | None = None

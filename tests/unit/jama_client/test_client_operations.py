@@ -10,8 +10,8 @@ import pytest
 import respx
 
 from jama_client.client import JamaClient
-from jama_client.exceptions import JamaNotFoundError
-from jama_client.models import Item, Project, Relationship, TestRun, User
+from jama_client.exceptions import JamaNotFoundError, JamaValidationError
+from jama_client.models import Comment, Item, Project, Relationship, TestRun, User
 
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "jama_responses"
 
@@ -143,3 +143,123 @@ async def test_get_test_runs_for_item_returns_test_run_models(
     assert isinstance(runs[0], TestRun)
     assert runs[0].fields["testRunStatus"] == "PASSED"
     assert route.calls.last.request.url.params["testCase"] == "42"
+
+
+@respx.mock
+async def test_create_comment_posts_canonical_payload_and_returns_comment(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    route = respx.post(f"{jama_base_url}/rest/latest/comments").mock(
+        return_value=httpx.Response(201, json=_fixture("comments_create.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        comment = await client.create_comment(
+            item_id=42,
+            project_id=1,
+            body="Hello world",
+        )
+    # Comment is synthesised from the new ID plus inputs (Jama POST returns
+    # meta-only envelope with no full comment body).
+    assert isinstance(comment, Comment)
+    assert comment.id == 5001
+    assert comment.in_reply_to is None
+    assert comment.body == {"text": "Hello world"}
+    assert comment.comment_type == "GENERAL"
+    assert comment.location == {"item": 42, "project": 1}
+    # Top-level comments must omit inReplyTo entirely (sending 0 NPEs Jamacloud).
+    sent = json.loads(route.calls.last.request.content)
+    assert sent == {
+        "body": {"text": "Hello world"},
+        "commentType": "GENERAL",
+        "location": {"item": 42, "project": 1},
+    }
+    assert "inReplyTo" not in sent
+
+
+@respx.mock
+async def test_create_comment_with_in_reply_to_includes_field(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    route = respx.post(f"{jama_base_url}/rest/latest/comments").mock(
+        return_value=httpx.Response(201, json=_fixture("comments_create.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        comment = await client.create_comment(
+            item_id=42,
+            project_id=1,
+            body="Replying",
+            in_reply_to=300,
+        )
+    assert comment.in_reply_to == 300
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["inReplyTo"] == 300
+
+
+@respx.mock
+async def test_create_comment_serialises_non_default_comment_type(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    route = respx.post(f"{jama_base_url}/rest/latest/comments").mock(
+        return_value=httpx.Response(201, json=_fixture("comments_create.json")),
+    )
+    async with JamaClient(jama_credentials) as client:
+        comment = await client.create_comment(
+            item_id=42,
+            project_id=1,
+            body="Requirement is unclassified per IEC 62304 sec. 4.3.",
+            comment_type="ISSUE",
+        )
+    assert comment.comment_type == "ISSUE"
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["commentType"] == "ISSUE"
+
+
+@respx.mock
+async def test_create_comment_raises_when_response_missing_id(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    """Defensive guard: if Jama returns 201 without meta.id, raise JamaValidationError."""
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    respx.post(f"{jama_base_url}/rest/latest/comments").mock(
+        return_value=httpx.Response(201, json={"meta": {"status": "Created"}}),
+    )
+    async with JamaClient(jama_credentials) as client:
+        with pytest.raises(
+            JamaValidationError,
+            match="did not include a new comment ID",
+        ):
+            await client.create_comment(item_id=42, project_id=1, body="x")
+
+
+@respx.mock
+async def test_request_raises_validation_error_for_non_dict_response(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    """Defensive guard: a JSON body that is not an object raises JamaValidationError."""
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    # Jama would never legitimately return a list here; this exercises the
+    # not-isinstance(payload, dict) safety branch in _parse_envelope.
+    respx.get(f"{jama_base_url}/rest/latest/users/current").mock(
+        return_value=httpx.Response(200, json=["not", "an", "object"]),
+    )
+    async with JamaClient(jama_credentials) as client:
+        with pytest.raises(JamaValidationError, match="not a JSON object"):
+            await client.get_current_user()

@@ -23,7 +23,7 @@ from mcp.server.fastmcp.server import Context
 from mcp.shared.context import RequestContext
 
 from jama_client.exceptions import JamaNotFoundError
-from jama_client.models import Item, Project, Relationship, TestRun, User
+from jama_client.models import Comment, Item, Project, Relationship, TestRun, User
 from jama_mcp_server import tools
 
 
@@ -153,3 +153,75 @@ async def test_get_test_runs_for_item_returns_ai_shaped_list(
     runs: list[dict[str, Any]] = result[1]["result"]
     assert runs[0]["id"] == 7001
     assert runs[0]["document_key"] == "DEMO-TR-1"
+
+
+async def test_create_comment_returns_ai_shaped_comment(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    server, client = server_with_mock_client
+    client.create_comment.return_value = Comment(
+        id=5001,
+        in_reply_to=None,
+        body={"text": "Hello world"},
+        comment_type="GENERAL",
+        location={"item": 42, "project": 1},
+    )
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        result = await server.call_tool(
+            "create_comment",
+            {"item_id": 42, "project_id": 1, "body": "Hello world"},
+        )
+    data: dict[str, Any] = result[1]
+    assert data["id"] == 5001
+    assert data["in_reply_to"] is None
+    assert data["body"] == {"text": "Hello world"}
+    assert data["comment_type"] == "GENERAL"
+    assert data["location"] == {"item": 42, "project": 1}
+    client.create_comment.assert_awaited_once_with(
+        item_id=42,
+        project_id=1,
+        body="Hello world",
+        comment_type="GENERAL",
+    )
+
+
+async def test_create_comment_passes_through_non_default_comment_type(
+    server_with_mock_client: tuple[FastMCP, AsyncMock],
+) -> None:
+    """ISSUE comment_type round-trips through the MCP tool to the client.
+
+    Persona 2 (compliance reviewer) needs to post ISSUE-typed comments
+    rather than GENERAL so Jama UI renders them with the appropriate
+    issue affordance. This test verifies the parameter pass-through; the
+    schema validity of "ISSUE" itself is guaranteed by the Jama Swagger
+    enum (verified 2026-05-02 against pm2.jamacloud.com/api-docs/) and
+    therefore not exercised against the live API.
+    """
+    server, client = server_with_mock_client
+    client.create_comment.return_value = Comment(
+        id=5002,
+        in_reply_to=None,
+        body={"text": "Missing classification"},
+        comment_type="ISSUE",
+        location={"item": 42, "project": 1},
+    )
+    ctx = _make_context(client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        result = await server.call_tool(
+            "create_comment",
+            {
+                "item_id": 42,
+                "project_id": 1,
+                "body": "Missing classification",
+                "comment_type": "ISSUE",
+            },
+        )
+    data: dict[str, Any] = result[1]
+    assert data["comment_type"] == "ISSUE"
+    client.create_comment.assert_awaited_once_with(
+        item_id=42,
+        project_id=1,
+        body="Missing classification",
+        comment_type="ISSUE",
+    )

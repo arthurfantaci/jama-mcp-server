@@ -21,9 +21,11 @@ The project is organized as two top-level Python packages under a single source 
 
 This split keeps the Jama API integration reusable independently of the MCP server (for a future MCP client agent, a CLI, or a notebook).
 
-## Phase 1 tool surface
+## MCP tool surface
 
-The Phase 1 MVP exposes six MCP tools demonstrating Jama Connect's signature requirements-to-test-runs traceability workflow:
+Six Phase 1 read tools demonstrate Jama Connect's signature requirements-to-test-runs traceability workflow; one Phase 4.5 write tool (`create_comment`) supports agentic comment-posting workflows.
+
+**Phase 1 (read):**
 
 1. `whoami` — identifies the authenticated user.
 2. `list_projects` — enumerates accessible Jama projects.
@@ -31,6 +33,10 @@ The Phase 1 MVP exposes six MCP tools demonstrating Jama Connect's signature req
 4. `search_items(project_id, query)` — searches items within a project.
 5. `get_downstream_relationships(item_id)` — traces relationships from a requirement toward its tests.
 6. `get_test_runs_for_item(item_id)` — retrieves test execution history for a covered item.
+
+**Phase 4.5 (write):**
+
+7. `create_comment(item_id, project_id, body, comment_type="GENERAL")` — posts a top-level comment on the named item. Accepts any of Jama's eight `commentType` enum values (`GENERAL`, `QUESTION`, `PROPOSED_CHANGE`, `ACCEPTED_COMMENT`, `REJECTED_COMMENT`, `ISSUE`, `DECISION`, `DECISION_REQUEST`); compliance-review workflows should use `ISSUE` for non-compliant findings. Designed for agent workflows that have already obtained explicit human approval for the comment text via an upstream checkpoint.
 
 ## Quick start
 
@@ -49,7 +55,7 @@ Smoke-test the server with the MCP Inspector:
 npx @modelcontextprotocol/inspector uv run jama-mcp-stdio
 ```
 
-The Inspector lists six tools; invoking `whoami` round-trips through the server to your Jamacloud sandbox and returns the authenticated user.
+The Inspector lists seven tools; invoking `whoami` round-trips through the server to your Jamacloud sandbox and returns the authenticated user.
 
 ## Docker quickstart
 
