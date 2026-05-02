@@ -10,7 +10,7 @@ import pytest
 import respx
 
 from jama_client.client import JamaClient
-from jama_client.exceptions import JamaNotFoundError
+from jama_client.exceptions import JamaNotFoundError, JamaValidationError
 from jama_client.models import Comment, Item, Project, Relationship, TestRun, User
 
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "jama_responses"
@@ -224,3 +224,42 @@ async def test_create_comment_serialises_non_default_comment_type(
     assert comment.comment_type == "ISSUE"
     sent = json.loads(route.calls.last.request.content)
     assert sent["commentType"] == "ISSUE"
+
+
+@respx.mock
+async def test_create_comment_raises_when_response_missing_id(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    """Defensive guard: if Jama returns 201 without meta.id, raise JamaValidationError."""
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    respx.post(f"{jama_base_url}/rest/latest/comments").mock(
+        return_value=httpx.Response(201, json={"meta": {"status": "Created"}}),
+    )
+    async with JamaClient(jama_credentials) as client:
+        with pytest.raises(
+            JamaValidationError,
+            match="did not include a new comment ID",
+        ):
+            await client.create_comment(item_id=42, project_id=1, body="x")
+
+
+@respx.mock
+async def test_request_raises_validation_error_for_non_dict_response(
+    jama_credentials,
+    jama_base_url,
+    jama_token_url,
+    jama_token_stub,
+):
+    """Defensive guard: a JSON body that is not an object raises JamaValidationError."""
+    respx.post(jama_token_url).mock(return_value=httpx.Response(200, json=jama_token_stub))
+    # Jama would never legitimately return a list here; this exercises the
+    # not-isinstance(payload, dict) safety branch in _parse_envelope.
+    respx.get(f"{jama_base_url}/rest/latest/users/current").mock(
+        return_value=httpx.Response(200, json=["not", "an", "object"]),
+    )
+    async with JamaClient(jama_credentials) as client:
+        with pytest.raises(JamaValidationError, match="not a JSON object"):
+            await client.get_current_user()
