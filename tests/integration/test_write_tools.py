@@ -87,3 +87,43 @@ async def test_create_relationship_against_live_sandbox():
     assert rel.from_item == from_item
     assert rel.to_item == to_item
     assert rel.relationship_type == rel_type
+
+
+async def test_create_path_a_trace_against_live_sandbox():
+    """Live smoke for create_path_a_trace — composes primitives into a single trace creation.
+
+    Gated on JAMA_INTEGRATION_PATH_A_TRACE_PROJECT (project ID),
+    JAMA_INTEGRATION_PATH_A_TRACE_SOURCE (source requirement document key,
+    e.g. 'AF-SUBSS-25'), JAMA_INTEGRATION_PATH_A_TRACE_CODE_PATH (code file
+    path), JAMA_INTEGRATION_PATH_A_TRACE_CODE_VERSION (code version string).
+
+    Leaves a new Code item AND a new relationship in the Sandbox; manual UI
+    cleanup expected.
+    """
+    project_id = int(os.environ.get("JAMA_INTEGRATION_PATH_A_TRACE_PROJECT", "0"))
+    source_key = os.environ.get("JAMA_INTEGRATION_PATH_A_TRACE_SOURCE", "")
+    code_path = os.environ.get("JAMA_INTEGRATION_PATH_A_TRACE_CODE_PATH", "")
+    code_version = os.environ.get("JAMA_INTEGRATION_PATH_A_TRACE_CODE_VERSION", "")
+    if project_id <= 0 or not source_key or not code_path or not code_version:
+        pytest.skip(
+            "Set JAMA_INTEGRATION_PATH_A_TRACE_PROJECT, "
+            "JAMA_INTEGRATION_PATH_A_TRACE_SOURCE, "
+            "JAMA_INTEGRATION_PATH_A_TRACE_CODE_PATH, and "
+            "JAMA_INTEGRATION_PATH_A_TRACE_CODE_VERSION to enable this test. "
+            "Note: this test creates a real Code item AND a real relationship "
+            "in the configured Jama sandbox.",
+        )
+
+    ts = datetime.now(tz=UTC).isoformat()
+    timestamped_path = f"{code_path}:smoke-{ts}"
+    async with JamaClient(_creds()) as client:
+        result = await client.create_path_a_trace(
+            project_id=project_id,
+            source_requirement_key=source_key,
+            code_path=timestamped_path,
+            code_version=code_version,
+        )
+    assert isinstance(result, dict)
+    assert result["source_item_id"] > 0
+    assert result["code_item_id"] > 0
+    assert result["relationship_id"] > 0
