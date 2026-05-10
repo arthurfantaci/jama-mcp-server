@@ -2,13 +2,13 @@
 
 ## Current phase
 
-**MVP build phase initiated 2026-05-10.** Phase 5 (write tools) un-cancelled. New sibling public repo for VS Code Extension committed. Strategic pivot: shift from "create new IG2200 project" demo dependency to **Sandbox-as-demo-target** (evolve project 127 / "Arthur Sandbox" in place; modify and enhance current data and structures as needed). Path A trace flow validated end-to-end against `pm2.jamacloud.com` 2026-05-10; SUSPECT auto-flag empirically verified.
+**MVP build phase — design specification committed 2026-05-10.** Scope locked at five `core/*` primitives (`create_item`, `create_relationship`, `list_item_types`, `list_relationship_types`, `list_items_by_type`) plus one `workflow/*` macro tool (`create_path_a_trace`). Strategic frame: anticipatory placeholder for Jama Connect MCP™; host-agnostic foundation; VS Code Extension / Skill / Plugin deferred as customer-specific deliverables per **Option 2**. Delivery: single GitHub issue → single working branch (`mvp/foundation-tools`) → single PR opened by an autonomous cloud routine. Sandbox-as-demo-target (project 127) confirmed. Path A trace flow validated 2026-05-10 against `pm2.jamacloud.com`; SUSPECT auto-flag empirically verified.
 
-The fresh session begins MVP planning under the Superpowers plugin (start with `superpowers:brainstorming` to settle scope, then `superpowers:writing-plans`, then `superpowers:executing-plans`). Public-first development conventions apply (professional portrayal, gitleaks, validate-docs-placement, Conventional Commits, Issue → Branch → PR for code; docs/memory-only changes commit directly to the working branch per `CLAUDE.md`).
+Design spec: [`docs/superpowers/specs/2026-05-10-jama-mvp-build-design.md`](docs/superpowers/specs/2026-05-10-jama-mvp-build-design.md). Public-first development conventions apply (professional portrayal, gitleaks, validate-docs-placement, Conventional Commits, Issue → Branch → PR for code; docs/memory-only changes commit directly to the working branch per `CLAUDE.md`).
 
-**Active branch:** `main`
-**Open PR:** none
-**Local commits ahead of origin:** 3 (docs/memory)
+**Active branch:** `main` (working branch `mvp/foundation-tools` to be created at issue-creation time)
+**Open PR:** none (cloud routine will open one against `main` after implementation)
+**Local commits ahead of origin:** updated per session
 **Most recent code merge:** [PR #10](https://github.com/arthurfantaci/jama-mcp-server/pull/10) — Phase 4.5 `create_comment` (squash-merged 2026-05-02, merge commit `6e28b9f`)
 
 ## Demo seed data in Sandbox (project 127, 2026-05-10)
@@ -27,9 +27,8 @@ Use these existing artifacts as the MVP's seed data; do NOT recreate or destruct
 | 1 | Functional MVP — six client operations + six MCP tools, both transports | Complete (PR #5 merged 2026-04-29) |
 | 2 | Docker containerization | Complete (PR #7 merged 2026-04-30) |
 | 4.5 | `create_comment` write tool — narrow Phase 4.5 carve-out | Complete (PR #10 merged 2026-05-02, merge commit `6e28b9f`) |
-| 5 | Write tools: `create_relationship`, `create_item` | Planned — un-cancelled 2026-05-10; MVP scope |
-| 6 | Read tool expansion: `get_item_children`, `list_item_types`, `list_relationship_rules`, `list_relationship_types`, `get_picklist_options`, `get_upstream_relationships`, optionally `get_comments` | Planned — un-cancelled 2026-05-10; MVP scope |
-| 7 | VS Code Extension Tier 2: command palette + QuickPick + HITL gate + editor insertion + status bar | Planned — new sibling public repo; MVP scope |
+| MVP build | Six new MCP tools: `core/*` primitives (`create_item`, `create_relationship`, `list_item_types`, `list_relationship_types`, `list_items_by_type`) + `workflow/*` macro (`create_path_a_trace`); single-PR cloud-routine delivery | Planned — design spec committed 2026-05-10 |
+| 7 | VS Code Extension Tier 2 | Deferred — customer-specific deliverable per Option 2 (2026-05-10); reinstatable as follow-on engagement scope |
 
 ## What's validated as of 2026-05-10
 
@@ -58,7 +57,7 @@ get_item(115102) → AF-CODE-1 (Code item with path$114, code_version$114)
 
 ## MCP tool surface (seven operational tools)
 
-**Read:** `whoami`, `list_projects`, `get_item`, `search_items`, `get_downstream_relationships`, `get_test_runs_for_item`. **Write:** `create_comment` (Phase 4.5). Phases 5+6 will expand this surface materially.
+**Read:** `whoami`, `list_projects`, `get_item`, `search_items`, `get_downstream_relationships`, `get_test_runs_for_item`. **Write:** `create_comment` (Phase 4.5). MVP build phase will expand this to thirteen tools across `core/*` and `workflow/*` namespaces — see [MVP design spec](docs/superpowers/specs/2026-05-10-jama-mvp-build-design.md).
 
 ## Known constraints
 
@@ -69,20 +68,21 @@ get_item(115102) → AF-CODE-1 (Code item with path$114, code_version$114)
 
 ## References
 
-- Design spec: [`docs/superpowers/specs/2026-04-28-jama-mcp-server-design.md`](docs/superpowers/specs/2026-04-28-jama-mcp-server-design.md)
+- Foundation design spec: [`docs/superpowers/specs/2026-04-28-jama-mcp-server-design.md`](docs/superpowers/specs/2026-04-28-jama-mcp-server-design.md)
+- MVP build spec: [`docs/superpowers/specs/2026-05-10-jama-mvp-build-design.md`](docs/superpowers/specs/2026-05-10-jama-mvp-build-design.md)
 - Phase 1 plan: [`docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md`](docs/superpowers/plans/2026-04-29-jama-mcp-server-phase-1-functional-mvp.md)
 - Phase 2 plan: [`docs/superpowers/plans/2026-04-30-jama-mcp-server-phase-2-docker.md`](docs/superpowers/plans/2026-04-30-jama-mcp-server-phase-2-docker.md)
 - Conventions: [`CLAUDE.md`](CLAUDE.md)
 - Author's global protocols: `~/.claude/CLAUDE.md`
 - Strategic positioning (gitignored): `docs/internal/jama-poc-strategic-positioning.md`
-- Consulting artifacts (gitignored, finalized 2026-05-06; need updates to reflect 2026-05-10 Sandbox-as-demo pivot): `docs/internal/specs/InfusionGuard 2200 - Project Configuration Specification.md` and `docs/internal/briefs/InfusionGuard 2200 - Software Engineer Workflow Brief.md`
+- Consulting artifacts (gitignored; brief revisions in scope of MVP build per spec Section 6): `docs/internal/specs/InfusionGuard 2200 - Project Configuration Specification.md` and `docs/internal/briefs/InfusionGuard 2200 - Software Engineer Workflow Brief.md`
 
 ## Recent decisions (last 5)
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-05-10 | **Phase 5 un-cancelled, MVP build phase initiated.** Add `create_relationship` + `create_item` write tools to the public MCP server. Add priority read tools (`get_item_children`, `list_item_types`, `list_relationship_rules`, `list_relationship_types`, `get_picklist_options`, `get_upstream_relationships`). Build Tier 2 VS Code Extension in a new sibling public repo (TypeScript stack). Pivot to **Sandbox-as-demo-target**: evolve project 127 in place rather than creating a new IG2200 project. Same public-first conventions throughout. Consulting artifacts will need updates to reflect this pivot (bundle into the MVP's documentation work, not a separate docs PR). | Preston's Jama Connect MCP™ access and Sandbox project-creation rights both delayed indefinitely. "Fully-operational MVP" requires a write surface somewhere; pivoting to evolve-the-Sandbox eliminates the project-creation dependency and uses the already-validated AF-SUBSS-25 / AF-CODE-1 / relationship 18505 as seed data. |
+| 2026-05-10 | **MVP build phase scope locked; design spec committed.** Six tools: five `core/*` primitives (`create_item`, `create_relationship`, `list_item_types`, `list_relationship_types`, `list_items_by_type`) anticipating Jama Connect MCP™'s expected surface, plus one `workflow/*` macro (`create_path_a_trace`) demonstrating AI-consumption tool design. **Option 2 chosen**: foundation-first, host-agnostic; VS Code Extension / Skill / Plugin deferred as customer-specific deliverables. Single-PR cloud-routine delivery via Anthropic infrastructure. Brief Section 2 / Section 4 / storyboard captions revised (Section 6 of new spec). See: `docs/superpowers/specs/2026-05-10-jama-mvp-build-design.md`. | The original brief expanded Preston Mitchell's verbatim use case into a four-surfaces architecture. Option 2 walks the expansion back to the foundation while preserving the storyboard as forward-looking customer-deliverable illustration. Foundation-first model is elegant, host-agnostic, extensible — gives Jama's diverse customer base an MCP-server placeholder today plus a clean substrate for customer-specific Skills/Plugins later. |
+| 2026-05-10 | **Phase 5 un-cancelled, MVP build phase initiated.** Add write tools to the public MCP server. Pivot to **Sandbox-as-demo-target**: evolve project 127 in place rather than creating a new IG2200 project. (Superseded by the scope-lock-in entry above for tool list and delivery topology.) | Preston's Jama Connect MCP™ access and Sandbox project-creation rights both delayed indefinitely. "Fully-operational MVP" requires a write surface somewhere; pivoting to evolve-the-Sandbox eliminates the project-creation dependency and uses the already-validated AF-SUBSS-25 / AF-CODE-1 / relationship 18505 as seed data. |
 | 2026-05-10 | **Path A trace flow validated end-to-end on real Jamacloud.** Read-side smoke test demonstrable today via the existing seven MCP tools. SUSPECT auto-flag verified working. Default project type already permits `Subsystem Requirement → Code "Implemented by"` (no admin work needed). | Commercial centerpiece of the consulting proposal proven on real data; turns the proposal from forward-looking spec into evidence of execution. |
 | 2026-05-06 | Software Engineer consulting-proposal artifacts finalized and renamed to buyer-facing filenames. Path A elevated to recommended primary trace mechanism (spec Section 5 / brief Frame 6). Frame 6 redrawn from real Jama UI screenshot to remove fabricated affordances. | Both documents commercial-quality and internally coherent; SUSPECT auto-flag is the regulatory-hygiene differentiator that Path A alone unlocks. |
-| 2026-05-04 | Jama Software announced GA of Jama Connect MCP™. Phases 5 and 6 of our MCP server were definitively cancelled at that point. **Reversed by 2026-05-10 decision above** due to access delay. | Vendor's own write surface was supposed to make our write tools redundant. |
-| 2026-05-02 | Phase 4.5 PR #10 squash-merged. `create_comment` shipped. Three undocumented Jama API behaviors codified in `CLAUDE.md` (inReplyTo NPE, meta-only POST envelope, eight commentType enum values). | Phase 4.5 closed. |
+| 2026-05-04 | Jama Software announced GA of Jama Connect MCP™. Phases 5 and 6 of our MCP server were definitively cancelled at that point. **Reversed by 2026-05-10 decisions above** due to access delay. | Vendor's own write surface was supposed to make our write tools redundant. |
