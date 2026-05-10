@@ -118,6 +118,20 @@ This project maintains two memory tiers:
 
 See [`.claude/skills/memory-hygiene/SKILL.md`](.claude/skills/memory-hygiene/SKILL.md) for the audit checklist.
 
+## MVP build conventions codified
+
+Patterns discovered or sanctioned during the MVP build phase. Apply uniformly to new `core/*` or `workflow/*` tools.
+
+- **Two-namespace tool layout.** `core/*` tools (in `tools/core.py`) anticipate Jama Connect MCP™ and map to REST endpoints. `workflow/*` tools (in `tools/workflow.py`) compose primitives for agentic use and are explicitly labeled "NOT expected in Jama Connect MCP™". Tool docstrings cite the corresponding REST endpoint for `core/*` tools and open with the "Workflow tool" header for `workflow/*` tools.
+- **`tools/__init__.py` aggregates both namespaces** via `core.register(server)` and `workflow.register(server)`. No lazy import needed inside `register()` — the tools package is already imported lazily by `server.py` (`from jama_mcp_server import tools  # noqa: PLC0415`).
+- **Tool docstrings do NOT include an `Args:` section for MCP tools.** `ctx: _Context` is always injected and not a user-facing parameter; Google-style D417 fires when it is omitted from an `Args:` section. Use inline parameter references in prose instead (e.g. "within ``project_id``").
+- **Paginated reads return `tuple[list[Item], bool]` from `JamaClient`** with the bool as `max_items_reached`. MCP tools wrap this as `{"items": [...], "max_items_reached": bool}`. FastMCP v1.27+ wraps list-returning tools in `{"result": [...]}` in the structured output; tests assert `response[1]["result"]` for list-returning tools.
+- **`JamaClient._type_cache: dict[str, Any]`** — per-instance cache for resolved type IDs and resource lists. Initialized in `__init__`. Keys: `item_types_{project_id}`, `relationship_types_{project_id}`, `code_item_type_{project_id}`, `rel_type_implemented_by_{project_id}`, `code_set_{project_id}`. Not invalidated during the instance lifetime (short-lived per session).
+- **Workflow logic that requires cross-call state lives on `JamaClient`** (e.g. `create_path_a_trace` as a client method). This allows `_type_cache` to persist across tool calls in the same MCP server session. The MCP workflow tool is a thin wrapper that calls the client method and returns its `dict` result.
+- **Set validation (type 31) belongs at the MCP tool layer** (`core/create_relationship`), not the client layer. The client's `create_relationship` is a pure POST wrapper. This keeps client unit tests free of extra `get_item` mocks and keeps the validation policy visible at the tool layer.
+- **`create_path_a_trace` code-item field keys** follow Jama's `<fieldName>$<typeId>` convention (e.g. `path$114`, `code_version$114`). The type ID is resolved at call time, not hardcoded.
+- **FastMCP raises `ToolError` wrapping any tool-raised exception**. Protocol tests that expect tool-raised exceptions must catch `mcp.server.fastmcp.exceptions.ToolError` rather than the underlying exception type.
+
 ## Pointers to global protocols
 
 The author's `~/.claude/CLAUDE.md` defines:

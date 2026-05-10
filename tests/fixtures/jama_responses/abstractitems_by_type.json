@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "status": "OK",
+    "timestamp": "2026-05-10T00:00:00.000+0000",
+    "pageInfo": {
+      "startIndex": 0,
+      "resultCount": 2,
+      "totalResults": 2
+    }
+  },
+  "links": {},
+  "data": [
+    {
+      "id": 115100,
+      "documentKey": "AF-SUBSS-25",
+      "globalId": "GID-115100",
+      "itemType": 87,
+      "project": 127,
+      "fields": {
+        "name": "SWR-OD-001: Module shall detect upstream occlusion within 500 ms.",
+        "description": "The module shall detect upstream occlusion within 300 ms.",
+        "status": 100
+      },
+      "createdDate": "2026-05-01T00:00:00.000+0000",
+      "modifiedDate": "2026-05-10T00:00:00.000+0000"
+    },
+    {
+      "id": 115101,
+      "documentKey": "AF-SUBSS-26",
+      "globalId": "GID-115101",
+      "itemType": 87,
+      "project": 127,
+      "fields": {
+        "name": "SWR-OD-002: Module shall log occlusion events.",
+        "description": "The module shall log each detected occlusion event.",
+        "status": 100
+      },
+      "createdDate": "2026-05-01T00:00:00.000+0000",
+      "modifiedDate": "2026-05-10T00:00:00.000+0000"
+    }
+  ]
+}

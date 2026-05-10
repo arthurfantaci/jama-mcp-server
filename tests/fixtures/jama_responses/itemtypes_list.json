@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "status": "OK",
+    "timestamp": "2026-05-10T00:00:00.000+0000"
+  },
+  "links": {},
+  "data": [
+    {
+      "id": 31,
+      "typeKey": "SET",
+      "display": "Set",
+      "displayPlural": "Sets",
+      "description": null,
+      "category": "CORE"
+    },
+    {
+      "id": 87,
+      "typeKey": "SUBSR",
+      "display": "Subsystem Requirement",
+      "displayPlural": "Subsystem Requirements",
+      "description": null,
+      "category": "CORE"
+    },
+    {
+      "id": 114,
+      "typeKey": "CODE",
+      "display": "Code",
+      "displayPlural": "Code",
+      "description": null,
+      "category": "CORE"
+    }
+  ]
+}
