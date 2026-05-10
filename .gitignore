@@ -86,3 +86,6 @@ docs/plans/
 # Claude Code per-user state
 .claude/settings.local.json
 .claude/worktrees/
+
+# Superpowers brainstorming visual-companion sessions (per-user, ephemeral)
+.superpowers/
