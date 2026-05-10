@@ -76,6 +76,22 @@ class Item(_JamaModel):
     modified_date: str | None = None
 
 
+class ItemType(_JamaModel):
+    """A Jamacloud item type definition.
+
+    Returned by ``GET /rest/latest/projects/{id}/itemtypes``. The ``type_key``
+    field (e.g. ``"CODE"``, ``"SUBSR"``) is used by workflow tools to identify
+    specific item types without hardcoding numeric IDs.
+    """
+
+    id: int
+    type_key: str | None = None
+    display: str | None = None
+    display_plural: str | None = None
+    description: str | None = None
+    category: str | None = None
+
+
 class RelationshipType(_JamaModel):
     """A Jamacloud relationship type definition."""
 

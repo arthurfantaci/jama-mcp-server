@@ -5,12 +5,19 @@ The :class:`JamaClient` class is an async context manager wrapping
 response envelope unwrapping (``meta`` / ``links`` / ``data``), and
 mapping HTTP status codes to typed :mod:`jama_client.exceptions`. The
 retry policy is the narrow one defined in Section 6 of the design spec.
+
+The client maintains a per-instance ``_type_cache`` dictionary for
+discovered type IDs and resource lists (item types, relationship types,
+Implementation Code Sets). Cache entries are keyed by project-scoped
+strings (e.g. ``item_types_127``) and are never invalidated — instances
+are short-lived, typically lasting the duration of one server session.
 """
 
 from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 import httpx
@@ -30,7 +37,16 @@ from jama_client.exceptions import (
     JamaServerError,
     JamaValidationError,
 )
-from jama_client.models import Comment, Item, Project, Relationship, TestRun, User
+from jama_client.models import (
+    Comment,
+    Item,
+    ItemType,
+    Project,
+    Relationship,
+    RelationshipType,
+    TestRun,
+    User,
+)
 
 _M = TypeVar("_M", bound=BaseModel)
 
@@ -58,6 +74,7 @@ class JamaClient:
         self._timeout = timeout or _DEFAULT_TIMEOUT
         self._http: httpx.AsyncClient | None = None
         self._tokens = TokenCache()
+        self._type_cache: dict[str, Any] = {}
 
     @property
     def is_open(self) -> bool:
@@ -272,6 +289,445 @@ class JamaClient:
             comment_type=comment_type,
             location={"item": item_id, "project": project_id},
         )
+
+    async def list_item_types(self, project_id: int) -> list[ItemType]:
+        """Return all item types configured for ``project_id``.
+
+        Anticipates ``GET /rest/latest/projects/{id}/itemtypes`` from
+        Jama Connect MCP™. Results are cached per project ID for the
+        client instance's lifetime.
+
+        Args:
+            project_id: The Jama project ID.
+
+        Returns:
+            A list of :class:`~jama_client.models.ItemType` objects.
+
+        Raises:
+            JamaNotFoundError: When the project does not exist.
+        """
+        cache_key = f"item_types_{project_id}"
+        cached: list[ItemType] | None = self._type_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        data = await self._request(
+            "GET",
+            f"/rest/latest/projects/{project_id}/itemtypes",
+        )
+        result = [self._validate(ItemType, item) for item in data]
+        self._type_cache[cache_key] = result
+        return result
+
+    async def list_relationship_types(self, project_id: int) -> list[RelationshipType]:
+        """Return relationship types available within ``project_id``.
+
+        Anticipates ``GET /rest/latest/relationshiptypes`` scoped by project
+        from Jama Connect MCP™. Results are cached per project ID for the
+        client instance's lifetime.
+
+        Args:
+            project_id: The Jama project ID used for scoping and caching.
+
+        Returns:
+            A list of :class:`~jama_client.models.RelationshipType` objects.
+        """
+        cache_key = f"relationship_types_{project_id}"
+        cached: list[RelationshipType] | None = self._type_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        data = await self._request(
+            "GET",
+            "/rest/latest/relationshiptypes",
+            params={"project": project_id},
+        )
+        result = [self._validate(RelationshipType, rt) for rt in data]
+        self._type_cache[cache_key] = result
+        return result
+
+    async def list_items_by_type(
+        self,
+        project_id: int,
+        item_type: int,
+        *,
+        max_items: int = 200,
+    ) -> tuple[list[Item], bool]:
+        """Return items of ``item_type`` within ``project_id``, up to ``max_items``.
+
+        Anticipates ``GET /rest/latest/abstractitems`` filtered by project and
+        item type from Jama Connect MCP™. Paginates internally using Jama's
+        ``startIndex`` / ``maxResults`` query parameters; stops when all items
+        have been fetched or the ``max_items`` cap is reached.
+
+        Args:
+            project_id: The Jama project ID to query.
+            item_type: The numeric item type ID to filter on.
+            max_items: Maximum number of items to return; defaults to 200.
+
+        Returns:
+            A ``(items, max_items_reached)`` tuple where ``max_items_reached``
+            is ``True`` when the cap was hit before all results were collected.
+        """
+        _page_size = 50
+        items: list[Item] = []
+        start_index = 0
+        total_results = 0
+
+        while len(items) < max_items:
+            remaining = max_items - len(items)
+            envelope = await self._request(
+                "GET",
+                "/rest/latest/abstractitems",
+                params={
+                    "project": project_id,
+                    "itemType": item_type,
+                    "startIndex": start_index,
+                    "maxResults": min(_page_size, remaining),
+                },
+                return_envelope=True,
+            )
+            page_data: list[Any] = envelope.get("data") or []
+            if not page_data:
+                break
+            items.extend(self._validate(Item, item) for item in page_data)
+            page_info: dict[str, Any] = (envelope.get("meta") or {}).get("pageInfo") or {}
+            total_results = int(page_info.get("totalResults") or 0)
+            if len(items) >= total_results:
+                break
+            start_index += len(page_data)
+        else:
+            return items, True
+
+        return items, len(items) < total_results
+
+    async def create_item(
+        self,
+        project_id: int,
+        item_type: int,
+        parent: int,
+        name: str,
+        fields: dict[str, Any] | None = None,
+    ) -> Item:
+        """Create a new Jama item of ``item_type`` inside ``parent``.
+
+        Anticipates ``POST /rest/latest/items`` from Jama Connect MCP™.
+        Follows the Phase 4.5 meta-only response envelope pattern: Jamacloud
+        returns a ``meta``-only envelope with the new item's ``id`` and
+        ``location``; the returned :class:`~jama_client.models.Item` is
+        synthesised from the assigned ID plus the request inputs.
+
+        Args:
+            project_id: The Jama project ID.
+            item_type: The numeric item type ID for the new item.
+            parent: The Jama item ID of the parent Set or container item.
+            name: The ``name`` field value for the new item.
+            fields: Optional additional field key/value pairs to set on the
+                item (merged with ``{"name": name}`` before submission).
+
+        Returns:
+            A :class:`~jama_client.models.Item` synthesised from the assigned
+            ID plus the request inputs. Timestamp and relational fields are
+            ``None`` — issue a follow-up ``get_item`` call for a fully-populated
+            representation.
+
+        Raises:
+            JamaAuthError: HTTP 401.
+            JamaForbiddenError: HTTP 403 — credential lacks item-create
+                permission on the project.
+            JamaNotFoundError: HTTP 404 — ``parent`` or ``project_id`` does
+                not exist.
+            JamaValidationError: HTTP 400 (request payload rejected by Jama),
+                any other unexpected status, or absence of the new item ID
+                from the response envelope.
+        """
+        item_fields: dict[str, Any] = {"name": name}
+        if fields:
+            item_fields.update(fields)
+
+        payload: dict[str, Any] = {
+            "project": project_id,
+            "itemType": item_type,
+            "location": {"parent": {"item": parent}},
+            "fields": item_fields,
+        }
+        envelope = await self._request(
+            "POST",
+            "/rest/latest/items",
+            json_body=payload,
+            return_envelope=True,
+        )
+        meta = envelope.get("meta") if isinstance(envelope, dict) else None
+        new_id = meta.get("id") if isinstance(meta, dict) else None
+        if not isinstance(new_id, int):
+            msg = "Jamacloud POST /items response did not include a new item ID."
+            raise JamaValidationError(msg, payload=envelope)
+
+        return Item(
+            id=new_id,
+            item_type=item_type,
+            project=project_id,
+            fields=item_fields,
+        )
+
+    async def create_relationship(
+        self,
+        from_item: int,
+        to_item: int,
+        relationship_type: int,
+    ) -> Relationship:
+        """Create a directed relationship between two existing Jama items.
+
+        Anticipates ``POST /rest/latest/relationships`` from Jama Connect MCP™.
+        Follows the Phase 4.5 meta-only response envelope pattern. The returned
+        :class:`~jama_client.models.Relationship` is synthesised from the
+        assigned ID plus the request inputs.
+
+        Args:
+            from_item: The Jama item ID of the source (upstream) endpoint.
+            to_item: The Jama item ID of the target (downstream) endpoint.
+            relationship_type: The numeric relationship type ID.
+
+        Returns:
+            A :class:`~jama_client.models.Relationship` synthesised from the
+            assigned ID plus the request inputs.
+
+        Raises:
+            JamaAuthError: HTTP 401.
+            JamaForbiddenError: HTTP 403.
+            JamaNotFoundError: HTTP 404 — either item does not exist.
+            JamaValidationError: HTTP 400, or absence of new relationship ID.
+        """
+        payload: dict[str, Any] = {
+            "fromItem": from_item,
+            "toItem": to_item,
+            "relationshipType": relationship_type,
+        }
+        envelope = await self._request(
+            "POST",
+            "/rest/latest/relationships",
+            json_body=payload,
+            return_envelope=True,
+        )
+        meta = envelope.get("meta") if isinstance(envelope, dict) else None
+        new_id = meta.get("id") if isinstance(meta, dict) else None
+        if not isinstance(new_id, int):
+            msg = "Jamacloud POST /relationships response did not include a new relationship ID."
+            raise JamaValidationError(msg, payload=envelope)
+
+        return Relationship(
+            id=new_id,
+            from_item=from_item,
+            to_item=to_item,
+            relationship_type=relationship_type,
+        )
+
+    async def create_path_a_trace(
+        self,
+        project_id: int,
+        source_requirement_key: str,
+        code_path: str,
+        code_version: str,
+        *,
+        name: str | None = None,
+        code_set_id: int | None = None,
+        code_item_type: int | None = None,
+        relationship_type: int | None = None,
+    ) -> dict[str, Any]:
+        """Create a Path A trace link from a source requirement to a new Code item.
+
+        Workflow tool — composes core primitives; NOT expected in Jama Connect
+        MCP™. High-level workflow that, given a source requirement document key,
+        a code file path, and a code version string:
+
+        1. Validates the source requirement exists (raises
+           :class:`~jama_client.exceptions.JamaNotFoundError` before any write
+           if the key cannot be resolved).
+        2. Resolves the Code item type by ``typeKey == "CODE"`` when
+           ``code_item_type`` is omitted; caches the result.
+        3. Resolves the "Implemented by" relationship type by name when
+           ``relationship_type`` is omitted; caches the result.
+        4. Resolves the Implementation Code Set by case-insensitive substring
+           match on ``"Implementation Code"`` when ``code_set_id`` is omitted;
+           caches the result. Raises :class:`~jama_client.exceptions.JamaNotFoundError`
+           when no match or multiple matches are found without an explicit ID.
+        5. Creates the Code item (name derived from the code path's basename
+           when ``name`` is not provided).
+        6. Creates the "Implemented by" relationship from the source requirement
+           to the new Code item.
+
+        Args:
+            project_id: The Jama project ID containing the source requirement
+                and the target Implementation Code Set.
+            source_requirement_key: The document key (e.g. ``"AF-SUBSS-25"``)
+                of the source requirement.
+            code_path: File path string stored in the Code item's
+                ``path$<typeId>`` field (e.g.
+                ``"src/detection/detector.py:7-42"``).
+            code_version: Version string stored in the Code item's
+                ``code_version$<typeId>`` field (e.g. ``"v1.0.0-rc1"``).
+            name: Optional override for the Code item's ``name`` field.
+                Defaults to the basename of ``code_path`` (excluding any
+                trailing ``:line-range`` suffix).
+            code_set_id: Optional explicit parent Set ID for the new Code item.
+                When omitted, the Set is resolved by name.
+            code_item_type: Optional explicit item type ID for Code items.
+                When omitted, resolved by ``typeKey == "CODE"``.
+            relationship_type: Optional explicit relationship type ID.
+                When omitted, resolved by name ``"Implemented by"``.
+
+        Returns:
+            A dict with ``source_item_id``, ``code_item_id``, and
+            ``relationship_id`` keys.
+
+        Raises:
+            JamaNotFoundError: When the source requirement, Code item type,
+                "Implemented by" relationship type, or Implementation Code Set
+                cannot be resolved.
+            JamaValidationError: When item or relationship creation fails.
+        """
+        source = await self._find_item_by_key(project_id, source_requirement_key)
+
+        resolved_code_item_type = (
+            code_item_type
+            if code_item_type is not None
+            else await self._resolve_code_item_type(project_id)
+        )
+        resolved_rel_type = (
+            relationship_type
+            if relationship_type is not None
+            else await self._resolve_implemented_by_rel_type(project_id)
+        )
+        resolved_code_set_id = (
+            code_set_id
+            if code_set_id is not None
+            else await self._resolve_implementation_code_set(project_id)
+        )
+
+        derived_name = name if name is not None else Path(code_path.split(":", maxsplit=1)[0]).name
+
+        code_item = await self.create_item(
+            project_id=project_id,
+            item_type=resolved_code_item_type,
+            parent=resolved_code_set_id,
+            name=derived_name,
+            fields={
+                f"path${resolved_code_item_type}": code_path,
+                f"code_version${resolved_code_item_type}": code_version,
+            },
+        )
+
+        relationship = await self.create_relationship(
+            from_item=source.id,
+            to_item=code_item.id,
+            relationship_type=resolved_rel_type,
+        )
+
+        return {
+            "source_item_id": source.id,
+            "code_item_id": code_item.id,
+            "relationship_id": relationship.id,
+        }
+
+    async def _find_item_by_key(self, project_id: int, key: str) -> Item:
+        """Locate a single item by its document key within ``project_id``.
+
+        Args:
+            project_id: The Jama project ID to scope the lookup.
+            key: The exact document key (e.g. ``"AF-SUBSS-25"``).
+
+        Returns:
+            The matching :class:`~jama_client.models.Item`.
+
+        Raises:
+            JamaNotFoundError: When no item with the given key exists in the
+                project.
+        """
+        data = await self._request(
+            "GET",
+            "/rest/latest/abstractitems",
+            params={"project": project_id, "documentKey": key},
+        )
+        items: list[Any] = data if isinstance(data, list) else []
+        if not items:
+            msg = f"No Jama item found with document key '{key}' in project {project_id}."
+            raise JamaNotFoundError(msg)
+        return self._validate(Item, items[0])
+
+    async def _resolve_code_item_type(self, project_id: int) -> int:
+        """Return the numeric ID of the ``CODE`` item type in ``project_id``.
+
+        Caches the result under ``code_item_type_{project_id}``.
+
+        Raises:
+            JamaNotFoundError: When no item type with ``typeKey == "CODE"``
+                exists in the project.
+        """
+        cache_key = f"code_item_type_{project_id}"
+        cached: int | None = self._type_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        item_types = await self.list_item_types(project_id)
+        for it in item_types:
+            if it.type_key == "CODE":
+                self._type_cache[cache_key] = it.id
+                return it.id
+        msg = f"No item type with typeKey 'CODE' found in project {project_id}."
+        raise JamaNotFoundError(msg)
+
+    async def _resolve_implemented_by_rel_type(self, project_id: int) -> int:
+        """Return the numeric ID of the ``"Implemented by"`` relationship type.
+
+        Caches the result under ``rel_type_implemented_by_{project_id}``.
+
+        Raises:
+            JamaNotFoundError: When no relationship type named ``"Implemented by"``
+                exists.
+        """
+        cache_key = f"rel_type_implemented_by_{project_id}"
+        cached: int | None = self._type_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        rel_types = await self.list_relationship_types(project_id)
+        for rt in rel_types:
+            if rt.name == "Implemented by":
+                self._type_cache[cache_key] = rt.id
+                return rt.id
+        msg = f"No relationship type named 'Implemented by' found in project {project_id}."
+        raise JamaNotFoundError(msg)
+
+    async def _resolve_implementation_code_set(self, project_id: int) -> int:
+        """Return the item ID of the Implementation Code Set in ``project_id``.
+
+        Queries Sets (item type 31) and picks the one whose ``name`` field
+        contains ``"implementation code"`` (case-insensitive substring match).
+        Caches the result under ``code_set_{project_id}``.
+
+        Raises:
+            JamaNotFoundError: When no matching Set exists, or when multiple
+                Sets match without an explicit ``code_set_id`` override.
+        """
+        cache_key = f"code_set_{project_id}"
+        cached: int | None = self._type_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        sets, _ = await self.list_items_by_type(project_id, item_type=31, max_items=200)
+        matches = [
+            s for s in sets if "implementation code" in str(s.fields.get("name") or "").lower()
+        ]
+        if not matches:
+            msg = (
+                f"No Set named 'Implementation Code' (case-insensitive substring) "
+                f"found in project {project_id}. Pass code_set_id explicitly."
+            )
+            raise JamaNotFoundError(msg)
+        if len(matches) > 1:
+            ids = [s.id for s in matches]
+            msg = (
+                f"Multiple Sets matching 'Implementation Code' found in project "
+                f"{project_id} (IDs: {ids}). Pass code_set_id explicitly."
+            )
+            raise JamaNotFoundError(msg)
+        self._type_cache[cache_key] = matches[0].id
+        return matches[0].id
 
     @staticmethod
     def _validate(model_cls: type[_M], payload: Any) -> _M:
