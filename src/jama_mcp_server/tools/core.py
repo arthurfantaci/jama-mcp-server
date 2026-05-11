@@ -88,6 +88,21 @@ def register(server: FastMCP) -> None:
 
         Anticipates ``GET /rest/latest/abstractitems`` from Jama Connect MCP™.
         ``query`` is matched against item content as a free-text search.
+
+        Constraints (observed against Jamacloud):
+
+        * No singular/plural stemming — ``"requirement"`` does not match
+          items named ``"requirements"``. Tokens must match closely.
+        * Approximately exact-token matching, not semantic. A query
+          describing the *content* of a requirement (e.g. ``"HTTP errors
+          typed exceptions"``) will not match a requirement whose body
+          discusses that topic unless the exact tokens appear.
+        * Newly created items have a ~30s-few-minute search-index lag
+          before they become discoverable.
+
+        If ``search_items`` returns empty and the item type is known,
+        fall back to ``list_items_by_type(project_id, item_type)`` and
+        filter the result client-side.
         """
         items = await _client(ctx).search_items(project_id=project_id, query=query)
         return [item.model_dump() for item in items]
@@ -133,8 +148,11 @@ def register(server: FastMCP) -> None:
         ``"GENERAL"``) and no parent — ``inReplyTo`` is omitted from the
         request payload entirely (sending ``0`` triggers a server-side NPE
         on Jamacloud). Both ``item_id`` and ``project_id`` are required by
-        Jama's request schema; obtain ``project_id`` from a prior
-        ``get_item`` call's ``project`` field or from ``list_projects``.
+        Jama's request schema. When the caller already has ``project_id``
+        (e.g., from the developer's prompt or context), pass it directly —
+        no prior ``list_projects`` discovery call is needed. Otherwise,
+        obtain it from a prior ``get_item`` call's ``project`` field or
+        from ``list_projects``.
 
         Valid ``comment_type`` enum values per the Jama Swagger schema:
         ``"GENERAL"`` (default), ``"QUESTION"``, ``"PROPOSED_CHANGE"``,
