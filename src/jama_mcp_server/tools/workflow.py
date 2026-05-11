@@ -80,6 +80,25 @@ def register(server: FastMCP) -> None:
         3. Creates an ``"Implemented by"`` relationship from the source
            requirement to the new Code item.
 
+        Recommended values when constructing the call:
+
+        * ``code_version`` — a release tag (``"v1.0.0"``) or commit SHA
+          (``"a1b2c3d"``). Branch names like ``"main"`` are weaker
+          defaults because the resolved code shifts as the branch
+          advances; tags and SHAs produce stable, point-in-time
+          references suitable for audit.
+        * ``repo_origin`` — derive from ``git remote get-url origin``
+          by stripping the leading scheme and the trailing ``.git``. For
+          example, ``https://github.com/arthurfantaci/jama-mcp-server.git``
+          becomes ``github.com/arthurfantaci/jama-mcp-server``. When
+          omitted, the Code item carries no link back to source — Jama
+          reviewers cannot navigate from Jama to the tagged code without
+          external knowledge of the repository origin.
+
+        ``project_id`` should be passed directly when the caller has it
+        from context (e.g., the developer's prompt) — no prior
+        ``list_projects`` discovery call is needed.
+
         Type IDs and the Set ID default to project-discovery when omitted:
         ``code_item_type`` is resolved by ``typeKey == "CODE"``;
         ``relationship_type`` is resolved by name ``"Implemented by"``;

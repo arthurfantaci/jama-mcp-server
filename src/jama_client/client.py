@@ -565,6 +565,12 @@ class JamaClient:
            tagged code (see ``repo_origin`` parameter description below). The
            HTML wrapping is required because Jama's Type 114 ``description``
            field is RICHTEXT-typed and silently drops plain-text content.
+           When ``repo_origin`` is omitted, the Code item carries only
+           ``path$<typeId>`` and ``code_version$<typeId>`` — Jama reviewers
+           cannot navigate from Jama to the tagged code without external
+           knowledge of the repository origin. Supplying ``repo_origin``
+           is strongly recommended whenever the caller knows the origin
+           (typically derivable from ``git remote get-url origin``).
         6. Creates the "Implemented by" relationship from the source requirement
            to the new Code item.
 
@@ -587,12 +593,22 @@ class JamaClient:
                 treated as part of the path.
             code_version: Version string stored in the Code item's
                 ``code_version$<typeId>`` field (e.g. ``"v1.0.0-rc1"``).
+                Recommended values: a release tag (``"v1.0.0"``) or a
+                commit SHA (``"a1b2c3d"``). Branch names like ``"main"``
+                are weaker defaults because the resolved code shifts as
+                the branch advances; a tag or SHA produces a stable,
+                point-in-time reference suitable for audit.
             repo_origin: Optional ``<host>/<owner>/<repo>`` string identifying
                 the source repository, e.g.
                 ``"github.com/arthurfantaci/jama-mcp-server"``. No leading
                 scheme; ``https://`` is prepended when constructing the deep
-                link. When supplied, the Code item's ``description`` field is
-                populated with an HTML payload of the form:
+                link. Recommended value: derive from ``git remote get-url
+                origin`` by stripping the leading scheme (``https://`` or
+                ``git@``) and the trailing ``.git``. For example,
+                ``https://github.com/arthurfantaci/jama-mcp-server.git``
+                becomes ``github.com/arthurfantaci/jama-mcp-server``. When
+                supplied, the Code item's ``description`` field is populated
+                with an HTML payload of the form:
 
                 .. code-block:: html
 
