@@ -253,6 +253,42 @@ async def test_create_path_a_trace_call_round_trips_via_protocol(
         source_requirement_key="AF-SUBSS-25",
         code_path="src/detection/detector.py:7-42",
         code_version="v1.0.0-rc1",
+        repo_origin=None,
+        name=None,
+        code_set_id=None,
+        code_item_type=None,
+        relationship_type=None,
+    )
+
+
+async def test_create_path_a_trace_passes_repo_origin_to_client(
+    server: FastMCP,
+    mock_jama_client: AsyncMock,
+) -> None:
+    """repo_origin is forwarded from the MCP tool call to the client method."""
+    mock_jama_client.create_path_a_trace.return_value = {
+        "source_item_id": 115100,
+        "code_item_id": 115200,
+        "relationship_id": 18600,
+    }
+    ctx = _make_context(mock_jama_client, server)
+    with patch.object(server, "get_context", return_value=ctx):
+        await server.call_tool(
+            "create_path_a_trace",
+            {
+                "project_id": 127,
+                "source_requirement_key": "AF-SUBSS-26",
+                "code_path": "src/jama_mcp_server/tools/workflow.py:78-130",
+                "code_version": "v1.0.0",
+                "repo_origin": "github.com/arthurfantaci/jama-mcp-server",
+            },
+        )
+    mock_jama_client.create_path_a_trace.assert_called_once_with(
+        project_id=127,
+        source_requirement_key="AF-SUBSS-26",
+        code_path="src/jama_mcp_server/tools/workflow.py:78-130",
+        code_version="v1.0.0",
+        repo_origin="github.com/arthurfantaci/jama-mcp-server",
         name=None,
         code_set_id=None,
         code_item_type=None,

@@ -39,6 +39,7 @@ def register(server: FastMCP) -> None:
         source_requirement_key: str,
         code_path: str,
         code_version: str,
+        repo_origin: str | None = None,
         name: str | None = None,
         code_set_id: int | None = None,
         code_item_type: int | None = None,
@@ -49,15 +50,29 @@ def register(server: FastMCP) -> None:
         Workflow tool — composes core primitives; NOT expected in Jama Connect
         MCP™. High-level workflow for ``project_id`` that, given
         ``source_requirement_key`` (a document key like ``"AF-SUBSS-25"``),
-        ``code_path`` (e.g. ``"src/detection/detector.py:7-42"``), and
-        ``code_version`` (e.g. ``"v1.0.0-rc1"``):
+        ``code_path`` (e.g. ``"src/detection/detector.py:7-42"``),
+        ``code_version`` (e.g. ``"v1.0.0-rc1"``), and optionally
+        ``repo_origin`` (e.g. ``"github.com/arthurfantaci/jama-mcp-server"``):
 
         1. Validates the source requirement exists (returns an error before
-           any write if the key cannot be resolved).
-        2. Creates a Code item in the Implementation Code Set with
-           ``path`` and ``code_version`` fields populated; the item ``name``
-           defaults to the basename of ``code_path`` (excluding any trailing
-           ``:line-range`` suffix) unless overridden by the ``name`` parameter.
+           any write if the key cannot be resolved). ``source_requirement_key``
+           is a Jama document key — no prior ``search_items`` call is needed.
+           By contrast, ``create_relationship`` and ``create_comment`` accept
+           numeric item IDs only.
+        2. Creates a Code item in the Implementation Code Set with ``path``
+           and ``code_version`` fields populated; the item ``name`` defaults to
+           the basename of ``code_path`` with any trailing ``:N-M`` line-range
+           suffix stripped (mid-path colons such as ISO timestamps are
+           preserved). When ``repo_origin`` is supplied, also populates the
+           item ``description`` with a four-line deep link in the form::
+
+               Repository: <repo_origin>
+               Version: <code_version>
+               Path: <path-without-range> (lines N-M)
+               Link: https://<repo_origin>/blob/<code_version>/<path>#LN-LM
+
+           The ``(lines N-M)`` annotation and ``#LN-LM`` fragment are omitted
+           when ``code_path`` carries no trailing line range.
         3. Creates an ``"Implemented by"`` relationship from the source
            requirement to the new Code item.
 
@@ -75,6 +90,7 @@ def register(server: FastMCP) -> None:
             source_requirement_key=source_requirement_key,
             code_path=code_path,
             code_version=code_version,
+            repo_origin=repo_origin,
             name=name,
             code_set_id=code_set_id,
             code_item_type=code_item_type,
