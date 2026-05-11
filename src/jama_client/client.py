@@ -561,8 +561,10 @@ class JamaClient:
            (e.g. ``"src/client.py:7-42"`` → ``"client.py"``); mid-path colons
            (ISO timestamps, Windows-style paths, annotated identifiers) are
            preserved. When ``repo_origin`` is supplied, populates the item's
-           ``description`` field with a four-line deep link to the tagged code
-           (see ``repo_origin`` parameter description below).
+           ``description`` field with an HTML-formatted deep link to the
+           tagged code (see ``repo_origin`` parameter description below). The
+           HTML wrapping is required because Jama's Type 114 ``description``
+           field is RICHTEXT-typed and silently drops plain-text content.
         6. Creates the "Implemented by" relationship from the source requirement
            to the new Code item.
 
@@ -590,18 +592,22 @@ class JamaClient:
                 ``"github.com/arthurfantaci/jama-mcp-server"``. No leading
                 scheme; ``https://`` is prepended when constructing the deep
                 link. When supplied, the Code item's ``description`` field is
-                populated with:
+                populated with an HTML payload of the form:
 
-                .. code-block:: text
+                .. code-block:: html
 
-                    Repository: <repo_origin>
-                    Version: <code_version>
-                    Path: <path-without-line-range> (lines N-M)
-                    Link: https://<repo_origin>/blob/<code_version>/<path>#LN-LM
+                    <p>Repository: <repo_origin><br>
+                    Version: <code_version><br>
+                    Path: <path-without-line-range> (lines N-M)<br>
+                    Link: <a href="<url>"><url></a></p>
 
-                The ``Path:`` and ``Link:`` lines omit the ``(lines N-M)``
-                annotation and ``#LN-LM`` fragment when no line range is
-                present in ``code_path``. When ``None`` (default), no
+                where ``<url>`` is
+                ``https://<repo_origin>/blob/<code_version>/<path>#LN-LM``.
+                The ``Path:`` line omits the ``(lines N-M)`` annotation and
+                the URL omits the ``#LN-LM`` fragment when no line range is
+                present in ``code_path``. The link is wrapped in an explicit
+                ``<a href>`` so it is clickable in Jama's UI regardless of
+                tenant link-detection settings. When ``None`` (default), no
                 ``description`` field is set on the Code item.
             name: Optional override for the Code item's ``name`` field.
                 Defaults to the basename of ``code_path`` with any trailing
@@ -661,7 +667,10 @@ class JamaClient:
                 path_line = f"Path: {stripped_path}"
                 link = f"https://{repo_origin}/blob/{code_version}/{stripped_path}"
             code_fields["description"] = (
-                f"Repository: {repo_origin}\nVersion: {code_version}\n{path_line}\nLink: {link}"
+                f"<p>Repository: {repo_origin}<br>"
+                f"Version: {code_version}<br>"
+                f"{path_line}<br>"
+                f'Link: <a href="{link}">{link}</a></p>'
             )
 
         code_item = await self.create_item(
