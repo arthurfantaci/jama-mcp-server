@@ -57,6 +57,10 @@ These values apply by default unless the work materially requires deviation:
 | **Auto-fix pull requests** | OFF | Favors first-run observation over automation. Auto-fix would replay routines on test failures without operator review of the original failure mode. |
 | **Allow unrestricted git push** | OFF | Defense-in-depth on `main`. The prompt prohibits push-to-main; this is the platform-level enforcement. |
 
+### 4.1 Note on `mcp_connections` request-vs-response shape
+
+Sending `mcp_connections: []` in the `RemoteTrigger create` request body produces a response that lists the user's globally-enabled connectors (for example, Hugging Face, Slack) with `permitted_tools: []`. The connectors are listed in the response but the routine cannot call them at runtime because `permitted_tools` is empty. This is functionally identical to "no MCP at runtime" — the asymmetry is in the request-versus-response shape, not in the routine's runtime capability. Observed during the DX testing implementation routine submission on 2026-05-11.
+
 ## 5. Prompt template
 
 A routine prompt is self-contained and addresses an LLM agent operating without conversation history. The template:
