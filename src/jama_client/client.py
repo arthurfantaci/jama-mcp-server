@@ -16,6 +16,7 @@ are short-lived, typically lasting the duration of one server session.
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
@@ -53,6 +54,11 @@ _M = TypeVar("_M", bound=BaseModel)
 _DEFAULT_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 _NETWORK_RETRY_LIMIT = 2
 _NETWORK_RETRY_BASE_DELAY = 0.5
+# Matches a trailing ":N-M" line-range suffix, e.g. ":7-42". Used to strip the
+# suffix before deriving a Code item name and to extract start/end lines for URL
+# construction. Anchored on "$" so it does not match mid-path colons (ISO
+# timestamps, Windows paths, annotated identifiers, etc.).
+_LINE_RANGE_RE = re.compile(r":(\d+)-(\d+)$")
 
 
 class JamaClient:
@@ -527,6 +533,7 @@ class JamaClient:
         code_path: str,
         code_version: str,
         *,
+        repo_origin: str | None = None,
         name: str | None = None,
         code_set_id: int | None = None,
         code_item_type: int | None = None,
@@ -549,24 +556,56 @@ class JamaClient:
            match on ``"Implementation Code"`` when ``code_set_id`` is omitted;
            caches the result. Raises :class:`~jama_client.exceptions.JamaNotFoundError`
            when no match or multiple matches are found without an explicit ID.
-        5. Creates the Code item (name derived from the code path's basename
-           when ``name`` is not provided).
+        5. Creates the Code item. The ``name`` defaults to the basename of
+           ``code_path`` with any trailing ``:N-M`` line-range suffix stripped
+           (e.g. ``"src/client.py:7-42"`` → ``"client.py"``); mid-path colons
+           (ISO timestamps, Windows-style paths, annotated identifiers) are
+           preserved. When ``repo_origin`` is supplied, populates the item's
+           ``description`` field with a four-line deep link to the tagged code
+           (see ``repo_origin`` parameter description below).
         6. Creates the "Implemented by" relationship from the source requirement
            to the new Code item.
+
+        ``source_requirement_key`` accepts a Jama document key (e.g.
+        ``"AF-SUBSS-25"``), which this method resolves to a numeric ID
+        internally. By contrast, ``create_item`` and ``create_relationship``
+        accept numeric IDs only; callers composing those primitives directly
+        must resolve keys themselves.
 
         Args:
             project_id: The Jama project ID containing the source requirement
                 and the target Implementation Code Set.
             source_requirement_key: The document key (e.g. ``"AF-SUBSS-25"``)
-                of the source requirement.
+                of the source requirement. Resolved to a numeric ID internally
+                — callers do not need a prior ``search_items`` call.
             code_path: File path string stored in the Code item's
                 ``path$<typeId>`` field (e.g.
-                ``"src/detection/detector.py:7-42"``).
+                ``"src/detection/detector.py:7-42"``). A trailing ``:N-M``
+                suffix is recognised as a line range; any other colon is
+                treated as part of the path.
             code_version: Version string stored in the Code item's
                 ``code_version$<typeId>`` field (e.g. ``"v1.0.0-rc1"``).
+            repo_origin: Optional ``<host>/<owner>/<repo>`` string identifying
+                the source repository, e.g.
+                ``"github.com/arthurfantaci/jama-mcp-server"``. No leading
+                scheme; ``https://`` is prepended when constructing the deep
+                link. When supplied, the Code item's ``description`` field is
+                populated with:
+
+                .. code-block:: text
+
+                    Repository: <repo_origin>
+                    Version: <code_version>
+                    Path: <path-without-line-range> (lines N-M)
+                    Link: https://<repo_origin>/blob/<code_version>/<path>#LN-LM
+
+                The ``Path:`` and ``Link:`` lines omit the ``(lines N-M)``
+                annotation and ``#LN-LM`` fragment when no line range is
+                present in ``code_path``. When ``None`` (default), no
+                ``description`` field is set on the Code item.
             name: Optional override for the Code item's ``name`` field.
-                Defaults to the basename of ``code_path`` (excluding any
-                trailing ``:line-range`` suffix).
+                Defaults to the basename of ``code_path`` with any trailing
+                ``:N-M`` line-range suffix stripped.
             code_set_id: Optional explicit parent Set ID for the new Code item.
                 When omitted, the Set is resolved by name.
             code_item_type: Optional explicit item type ID for Code items.
@@ -602,17 +641,35 @@ class JamaClient:
             else await self._resolve_implementation_code_set(project_id)
         )
 
-        derived_name = name if name is not None else Path(code_path.split(":", maxsplit=1)[0]).name
+        stripped_path = _LINE_RANGE_RE.sub("", code_path)
+        derived_name = name if name is not None else Path(stripped_path).name
+
+        code_fields: dict[str, Any] = {
+            f"path${resolved_code_item_type}": code_path,
+            f"code_version${resolved_code_item_type}": code_version,
+        }
+        if repo_origin is not None:
+            range_match = _LINE_RANGE_RE.search(code_path)
+            if range_match:
+                start_line, end_line = range_match.group(1), range_match.group(2)
+                path_line = f"Path: {stripped_path} (lines {start_line}-{end_line})"
+                link = (
+                    f"https://{repo_origin}/blob/{code_version}"
+                    f"/{stripped_path}#L{start_line}-L{end_line}"
+                )
+            else:
+                path_line = f"Path: {stripped_path}"
+                link = f"https://{repo_origin}/blob/{code_version}/{stripped_path}"
+            code_fields["description"] = (
+                f"Repository: {repo_origin}\nVersion: {code_version}\n{path_line}\nLink: {link}"
+            )
 
         code_item = await self.create_item(
             project_id=project_id,
             item_type=resolved_code_item_type,
             parent=resolved_code_set_id,
             name=derived_name,
-            fields={
-                f"path${resolved_code_item_type}": code_path,
-                f"code_version${resolved_code_item_type}": code_version,
-            },
+            fields=code_fields,
         )
 
         relationship = await self.create_relationship(
