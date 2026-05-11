@@ -64,15 +64,19 @@ def register(server: FastMCP) -> None:
            the basename of ``code_path`` with any trailing ``:N-M`` line-range
            suffix stripped (mid-path colons such as ISO timestamps are
            preserved). When ``repo_origin`` is supplied, also populates the
-           item ``description`` with a four-line deep link in the form::
+           item ``description`` with an HTML-formatted deep link in the form::
 
-               Repository: <repo_origin>
-               Version: <code_version>
-               Path: <path-without-range> (lines N-M)
-               Link: https://<repo_origin>/blob/<code_version>/<path>#LN-LM
+               <p>Repository: <repo_origin><br>
+               Version: <code_version><br>
+               Path: <path-without-range> (lines N-M)<br>
+               Link: <a href="<url>"><url></a></p>
 
-           The ``(lines N-M)`` annotation and ``#LN-LM`` fragment are omitted
-           when ``code_path`` carries no trailing line range.
+           where ``<url>`` is
+           ``https://<repo_origin>/blob/<code_version>/<path>#LN-LM``. The
+           HTML wrapping is required because Jama's ``description`` field on
+           Type 114 (Code) is RICHTEXT-typed and silently drops plain-text
+           content. The ``(lines N-M)`` annotation and ``#LN-LM`` fragment are
+           omitted when ``code_path`` carries no trailing line range.
         3. Creates an ``"Implemented by"`` relationship from the source
            requirement to the new Code item.
 

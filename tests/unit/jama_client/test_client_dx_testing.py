@@ -81,8 +81,15 @@ async def test_name_derivation_strips_trailing_line_range() -> None:
 # ---------------------------------------------------------------------------
 
 
-async def test_description_populated_with_line_range_matches_spec_format() -> None:
-    """Description matches the four-line spec format when a trailing line range is present."""
+async def test_description_populated_with_line_range_matches_html_format() -> None:
+    """Description is HTML-formatted with explicit anchor tag when a line range is present.
+
+    Jama's Type 114 ``description`` field is RICHTEXT-typed and silently drops
+    plain-text content on POST ``/items`` (verified against pm2.jamacloud.com
+    2026-05-11; tracked in issue #17). The HTML wrapping ensures the field
+    persists; the explicit ``<a href>`` tag ensures the link is clickable in
+    Jama's UI regardless of tenant link-detection settings.
+    """
     client = _make_client()
     await JamaClient.create_path_a_trace(
         client,
@@ -94,18 +101,25 @@ async def test_description_populated_with_line_range_matches_spec_format() -> No
     )
     call_kwargs = client.create_item.call_args.kwargs
     description: str = call_kwargs["fields"]["description"]
-    expected = (
-        "Repository: github.com/arthurfantaci/jama-mcp-server\n"
-        "Version: v1.0.0\n"
-        "Path: src/jama_mcp_server/tools/workflow.py (lines 78-130)\n"
-        "Link: https://github.com/arthurfantaci/jama-mcp-server"
+    url = (
+        "https://github.com/arthurfantaci/jama-mcp-server"
         "/blob/v1.0.0/src/jama_mcp_server/tools/workflow.py#L78-L130"
+    )
+    expected = (
+        "<p>Repository: github.com/arthurfantaci/jama-mcp-server<br>"
+        "Version: v1.0.0<br>"
+        "Path: src/jama_mcp_server/tools/workflow.py (lines 78-130)<br>"
+        f'Link: <a href="{url}">{url}</a></p>'
     )
     assert description == expected
 
 
 async def test_description_populated_without_line_range_omits_annotation_and_fragment() -> None:
-    """Description omits the ``(lines N-M)`` annotation and ``#LN-LM`` fragment when absent."""
+    """Description omits the ``(lines N-M)`` annotation and ``#LN-LM`` fragment when absent.
+
+    HTML wrapping is unchanged; only the ``Path:`` line and the URL itself
+    adapt to the missing line range.
+    """
     client = _make_client()
     await JamaClient.create_path_a_trace(
         client,
@@ -117,12 +131,12 @@ async def test_description_populated_without_line_range_omits_annotation_and_fra
     )
     call_kwargs = client.create_item.call_args.kwargs
     description: str = call_kwargs["fields"]["description"]
+    url = "https://github.com/arthurfantaci/jama-mcp-server/blob/v1.0.0/src/jama_client/client.py"
     expected = (
-        "Repository: github.com/arthurfantaci/jama-mcp-server\n"
-        "Version: v1.0.0\n"
-        "Path: src/jama_client/client.py\n"
-        "Link: https://github.com/arthurfantaci/jama-mcp-server"
-        "/blob/v1.0.0/src/jama_client/client.py"
+        "<p>Repository: github.com/arthurfantaci/jama-mcp-server<br>"
+        "Version: v1.0.0<br>"
+        "Path: src/jama_client/client.py<br>"
+        f'Link: <a href="{url}">{url}</a></p>'
     )
     assert description == expected
 
