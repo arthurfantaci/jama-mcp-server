@@ -39,6 +39,15 @@ Fixes #
 - [ ] Docstrings updated
 - [ ] Design specification updated (if architecture changed)
 
+## Routine-driven work
+
+<!-- Complete only if this PR was opened by a cloud routine. Skip if human-authored. -->
+
+- [ ] Routine `claude.ai/code` run ID:
+- [ ] Routine submitted against design specification at:
+- [ ] Routine prompt archived in PR description body (collapsed `<details>` block) for reproducibility
+- [ ] Routine configuration matched `docs/runbooks/cloud-routine-config.md` defaults (or deviations noted)
+
 ## Memory Hygiene
 
 - [ ] Memory files audited if architecture, conventions, or core paths changed (`/memory-audit`)
