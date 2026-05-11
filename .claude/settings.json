@@ -11,21 +11,5 @@
         ]
       }
     ]
-  },
-  "permissions": {
-    "allow": [
-      "Bash(uv run pytest)",
-      "Bash(uv run pytest -m \"not integration\")",
-      "Bash(uv run ruff check .)",
-      "Bash(uv run ruff format --check .)",
-      "Bash(uv run mypy src/)",
-      "mcp__memory__search_memories",
-      "mcp__memory__find_memories_by_name",
-      "mcp__jama-mcp-server__whoami",
-      "mcp__jama-mcp-server__list_projects",
-      "mcp__jama-mcp-server__get_item",
-      "mcp__jama-mcp-server__search_items",
-      "mcp__jama-mcp-server__get_downstream_relationships"
-    ]
   }
 }
